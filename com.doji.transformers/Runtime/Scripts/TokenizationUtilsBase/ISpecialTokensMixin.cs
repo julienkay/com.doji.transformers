@@ -2,15 +2,15 @@ using System.Collections.Generic;
 
 namespace Doji.AI.Transformers {
     public interface ISpecialTokensMixin {
-        public string bos_token { get; set; }
-        public string eos_token { get; set; }
-        public string unk_token { get; set; }
-        public string sep_token { get; set; }
-        public string pad_token { get; set; }
-        public string cls_token { get; set; }
-        public string mask_token { get; set; }
-        public List<string> additional_special_tokens { get; set; }
-        public bool verbose { get; set; }
+        public string BosToken { get; set; }
+        public string EosToken { get; set; }
+        public string UnkToken { get; set; }
+        public string SepToken { get; set; }
+        public string PadToken { get; set; }
+        public string ClsToken { get; set; }
+        public string MaskToken { get; set; }
+        public List<string> AdditionalSpecialTokens { get; set; }
+        public bool Verbose { get; set; }
 
         public static List<string> SPECIAL_TOKENS_ATTRIBUTES = new List<string>() {
             "bos_token",

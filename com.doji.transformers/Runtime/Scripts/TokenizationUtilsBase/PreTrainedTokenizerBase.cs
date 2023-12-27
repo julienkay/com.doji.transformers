@@ -9,14 +9,14 @@ namespace Doji.AI.Transformers {
     /// (wrap the dictionary of output with special method for the Fast tokenizers)
     /// </summary>
     public class PreTrainedTokenizerBase : ISpecialTokensMixin {
-        public string bos_token { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
-        public string eos_token { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
-        public string unk_token { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
-        public string sep_token { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
-        public string pad_token { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
-        public string cls_token { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
-        public string mask_token { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
-        public List<string> additional_special_tokens { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
-        public bool verbose { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
+        public string BosToken { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
+        public string EosToken { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
+        public string UnkToken { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
+        public string SepToken { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
+        public string PadToken { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
+        public string ClsToken { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
+        public string MaskToken { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
+        public List<string> AdditionalSpecialTokens { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
+        public bool Verbose { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
     }
 }
