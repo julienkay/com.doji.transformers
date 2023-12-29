@@ -13,6 +13,8 @@ namespace Doji.AI.Transformers {
     /// </summary>
     public class PreTrainedTokenizer : PreTrainedTokenizerBase {
 
+        private Trie _tokensTrie;
+
         public PreTrainedTokenizer() {
 
         }
