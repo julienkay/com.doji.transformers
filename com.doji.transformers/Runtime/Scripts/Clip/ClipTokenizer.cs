@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Unity.Sentis.Layers;
 
 namespace Doji.AI.Transformers {
 
@@ -10,7 +9,7 @@ namespace Doji.AI.Transformers {
     /// A clip tokenizer to tokenize text.
     /// Based on byte-level Byte-Pair-Encoding.
     /// </summary>
-    public class ClipTokenizer : PreTrainedTokenizer {
+    public sealed class ClipTokenizer : PreTrainedTokenizer {
 
         private BasicTokenizer _nlp;
         private Vocab _vocab;
@@ -48,7 +47,28 @@ namespace Doji.AI.Transformers {
             AddedToken unkToken,
             AddedToken bosToken,
             AddedToken eosToken,
-            AddedToken padToken) : base()
+            AddedToken padToken)
+        {
+            Initialize(
+                vocab,
+                merges,
+                errors,
+                unkToken,
+                bosToken,
+                eosToken,
+                padToken
+            );
+        }
+
+        protected override void Initialize(
+            Vocab vocab,
+            string[] merges,
+            string errors,
+            AddedToken unkToken,
+            AddedToken bosToken,
+            AddedToken eosToken,
+            AddedToken padToken,
+            Dictionary<int, AddedToken> addedTokensDecoder = null)
         {
             BosToken = bosToken;
             EosToken = eosToken;
@@ -83,6 +103,8 @@ namespace Doji.AI.Transformers {
                 @"<\|startoftext\|>|<\|endoftext\|>|'s|'t|'re|'ve|'m|'ll|'d|[\p{L}]+|[\p{N}]|[^\s\p{L}\p{N}]+",
                 RegexOptions.IgnoreCase
             );
+
+            base.Initialize(vocab, merges, errors, unkToken, bosToken, eosToken, padToken);
         }
 
         /// <summary>
