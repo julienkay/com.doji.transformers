@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 
 namespace Doji.AI.Transformers {
@@ -35,6 +36,16 @@ namespace Doji.AI.Transformers {
                 clsToken,
                 maskToken
             );
+        }
+
+        /// <summary>
+        /// Returns the vocabulary as a dictionary of token to index.
+        /// `tokenizer.get_vocab()[token]` is equivalent to
+        /// `tokenizer.convert_tokens_to_ids(token)` when `token`
+        /// is in the vocab.
+        /// </summary>
+        protected virtual Dictionary<string, int> GetVocab() {
+            throw new NotImplementedException();
         }
     }
 }

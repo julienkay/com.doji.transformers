@@ -7,14 +7,13 @@ namespace Doji.AI.Transformers {
     /// The `normalized` will default to `not special` if it is not specified,
     /// similarly to the definition in `tokenizers`.
     /// </summary>
-    public class AddedToken {
+    public class AddedToken : Token {
 
-        public string Content { get; }
-        public bool Single_Word { get; }
-        public bool Lstrip { get; }
-        public bool Rstrip { get; }
-        public bool Special { get; }
-        public bool Normalized { get; }
+        public bool Single_Word { get; set; }
+        public bool Lstrip { get; set; }
+        public bool Rstrip { get; set; }
+        public bool Special { get; set; }
+        public bool Normalized { get; set; }
 
 
         public AddedToken(
@@ -32,7 +31,5 @@ namespace Doji.AI.Transformers {
             Special = special;
             Normalized = normalized ?? !special;
         }
-
-        public static implicit operator string(AddedToken t) => t.Content;
     }
 }

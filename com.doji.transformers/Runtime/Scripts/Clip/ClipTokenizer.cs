@@ -9,10 +9,16 @@ namespace Doji.AI.Transformers {
     /// A clip tokenizer to tokenize text.
     /// Based on byte-level Byte-Pair-Encoding.
     /// </summary>
-    public sealed class ClipTokenizer : PreTrainedTokenizer {
+    public class ClipTokenizer : PreTrainedTokenizer {
+
+        public int VocabSize {
+            get {
+                return Vocab.Encoder.Count;
+            }
+        }
+        private Vocab Vocab { get; set; }
 
         private BasicTokenizer _nlp;
-        private Vocab _vocab;
         private Dictionary<int, char> _byteEncoder;
         private Dictionary<char, int> _byteDecoder;
         private Dictionary<Tuple<string, string>, int> bpeRanks;
@@ -60,7 +66,7 @@ namespace Doji.AI.Transformers {
             );
         }
 
-        protected override void Initialize(
+        protected void Initialize(
             Vocab vocab,
             string[] merges,
             string errors,
@@ -77,7 +83,7 @@ namespace Doji.AI.Transformers {
 
             // ftfy.fix_text not implemented, using BasicTokenizer instead
             _nlp = new BasicTokenizer();
-            _vocab = vocab;
+            Vocab = vocab;
             _byteEncoder = BytesToUnicode();
             _byteDecoder = _byteEncoder.ToDictionary(x => x.Value, x => x.Key);
 
@@ -105,6 +111,10 @@ namespace Doji.AI.Transformers {
             );
 
             base.Initialize(vocab, merges, errors, unkToken, bosToken, eosToken, padToken);
+        }
+
+        protected override Dictionary<string, int> GetVocab() {
+            return Vocab.Encoder;
         }
 
         /// <summary>

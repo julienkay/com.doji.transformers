@@ -11,8 +11,8 @@ namespace Doji.AI.Transformers {
     /// </summary>
     internal class Trie {
 
-        private readonly HashSet<string> _tokens = new HashSet<string>();
-        public Dictionary<char, object> data = new Dictionary<char, object>();
+        public readonly HashSet<string> Tokens = new HashSet<string>();
+        public Dictionary<char, object> Data = new Dictionary<char, object>();
 
         public void Add(string word) {
             if (string.IsNullOrEmpty(word)) {
@@ -20,8 +20,8 @@ namespace Doji.AI.Transformers {
                 return;
             }
 
-            _tokens.Add(word);
-            var node = data;
+            Tokens.Add(word);
+            var node = Data;
 
             foreach (var ch in word) {
                 if (!node.ContainsKey(ch)) {
@@ -118,8 +118,8 @@ namespace Doji.AI.Transformers {
                     }
                 }
 
-                if (current >= skip && data.ContainsKey(currentChar)) {
-                    states[current] = data[currentChar];
+                if (current >= skip && Data.ContainsKey(currentChar)) {
+                    states[current] = Data[currentChar];
                 }
             }
 
@@ -165,7 +165,7 @@ namespace Doji.AI.Transformers {
 
         public override string ToString() {
             StringBuilder s = new StringBuilder();
-            ToString(data, s);
+            ToString(Data, s);
             return s.ToString();
         }
 

@@ -1,18 +1,19 @@
 using System.Collections.Generic;
-using Unity.Sentis.Layers;
+using System.Linq;
 
 namespace Doji.AI.Transformers {
 
     public abstract partial class PreTrainedTokenizerBase : ISpecialTokensMixin {
-        public bool Verbose { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
-        public string BosToken { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
-        public string EosToken { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
-        public string UnkToken { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
-        public string SepToken { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
-        public string PadToken { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
-        public string ClsToken { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
-        public string MaskToken { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
-        public List<string> AdditionalSpecialTokens { get; set; }
+        public bool Verbose { get; set; }
+
+        public Token BosToken { get; set; }
+        public Token EosToken { get; set; }
+        public Token UnkToken { get; set; }
+        public Token SepToken { get; set; }
+        public Token PadToken { get; set; }
+        public Token ClsToken { get; set; }
+        public Token MaskToken { get; set; }
+        public List<Token> AdditionalSpecialTokens { get; set; }
 
         public int? BosTokenID => throw new System.NotImplementedException();
 
@@ -52,12 +53,41 @@ namespace Doji.AI.Transformers {
             throw new System.NotImplementedException();
         }
 
-        public Dictionary<string, string> SpecialTokensMap() {
-            throw new System.NotImplementedException();
+        Dictionary<string, AddedToken> ISpecialTokensMixin.SpecialTokensMap => throw new System.NotImplementedException();
+
+        public Dictionary<string, Token> SpecialTokensMapExtended {
+            get {
+                return new Dictionary<string, Token> {
+                    { "bos_token" , BosToken  },
+                    { "eos_token" , EosToken  },
+                    { "unk_token" , UnkToken  },
+                    { "sep_token" , SepToken  },
+                    { "pad_token" , PadToken  },
+                    { "cls_token" , ClsToken  },
+                    { "mask_token", MaskToken },
+                };
+            }
         }
 
-        public Dictionary<string, List<string>> SpecialTokensMap2() {
-            throw new System.NotImplementedException();
+        public List<Token> AllSpecialTokensExtended {
+            get {
+                List<Token> allTokens = new List<Token>();
+                HashSet<string> seen = new HashSet<string>();
+
+                foreach (var value in SpecialTokensMapExtended.Values) {
+                    var tokenToAdd = value.ToString();
+                    if (!seen.Contains(tokenToAdd)) {
+                        allTokens.Add(value);
+                        seen.Add(tokenToAdd);
+                    }
+                }
+
+                var tokensToAdd = AdditionalSpecialTokens.Where(token => !seen.Contains(token));
+                allTokens.AddRange(tokensToAdd);
+                seen.UnionWith(tokensToAdd.Select(token => token.ToString()));
+
+                return allTokens;
+            }
         }
 
         public void InitializeSpecialTokensMixin(
@@ -68,7 +98,7 @@ namespace Doji.AI.Transformers {
             AddedToken padToken = null,
             AddedToken clsToken = null,
             AddedToken maskToken = null,
-            List<string> additionalSpecialTokens = null,
+            List<Token> additionalSpecialTokens = null,
             bool verbose = false)
         {
             BosToken = bosToken;
@@ -84,7 +114,7 @@ namespace Doji.AI.Transformers {
             if (additionalSpecialTokens != null) {
                 AdditionalSpecialTokens = additionalSpecialTokens;
             } else {
-                AdditionalSpecialTokens = new List<string>();
+                AdditionalSpecialTokens = new List<Token>();
             }
             Verbose = Verbose;
         }
