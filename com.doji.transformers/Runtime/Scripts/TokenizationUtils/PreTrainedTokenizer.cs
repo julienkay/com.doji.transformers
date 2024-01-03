@@ -24,9 +24,7 @@ namespace Doji.AI.Transformers {
         private Dictionary<int, AddedToken> AddedTokensDecoder;
 
         protected override void Initialize(
-            Vocab vocab,
-            string[] merges,
-            string errors,
+            int? modelMaxLength = null,
             AddedToken bosToken = null,
             AddedToken eosToken = null,
             AddedToken unkToken = null,
@@ -53,16 +51,15 @@ namespace Doji.AI.Transformers {
 
             // 4 init the parent class
             base.Initialize(
-                vocab,
-                merges,
-                errors,
+                modelMaxLength,
                 bosToken,
                 eosToken,
                 unkToken,
                 sepToken,
                 padToken,
                 clsToken,
-                maskToken);
+                maskToken
+            );
 
             // 4. If some of the special tokens are not part of the vocab, we add them, at the end.
             // the order of addition is the same as self.SPECIAL_TOKENS_ATTRIBUTES following `tokenizers`

@@ -74,14 +74,15 @@ namespace Doji.AI.Transformers {
             AddedToken bosToken,
             AddedToken eosToken,
             AddedToken padToken,
-            Dictionary<int, AddedToken> addedTokensDecoder = null)
+            Dictionary<int, AddedToken> addedTokensDecoder = null,
+            int? modelMaxLength = null)
         {
             BosToken = bosToken;
             EosToken = eosToken;
             UnkToken = unkToken;
             PadToken = padToken;
 
-            // ftfy.fix_text not implemented, using BasicTokenizer instead
+            // TODO: BasicTokenizer only a fallback, implmenet ftfy.fix_text instead?
             _nlp = new BasicTokenizer();
             Vocab = vocab;
             _byteEncoder = BytesToUnicode();
@@ -110,7 +111,13 @@ namespace Doji.AI.Transformers {
                 RegexOptions.IgnoreCase
             );
 
-            base.Initialize(vocab, merges, errors, unkToken, bosToken, eosToken, padToken);
+            base.Initialize(
+                modelMaxLength,
+                unkToken,
+                bosToken,
+                eosToken,
+                padToken
+            );
         }
 
         protected override Dictionary<string, int> GetVocab() {
