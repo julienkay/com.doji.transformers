@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 
 namespace Doji.AI.Transformers {
 
@@ -24,7 +25,12 @@ namespace Doji.AI.Transformers {
         private Dictionary<int, AddedToken> AddedTokensDecoder;
 
         protected override void Initialize(
-            int? modelMaxLength = null,
+            int modelMaxLength = int.MaxValue,
+            Side paddingSide = Side.Right,
+            Side truncationSide = Side.Right,
+            List<string> modelInputNames = null,
+            bool cleanUpTokenizationSpaces = true,
+            bool splitSpecialTokens = false,
             AddedToken bosToken = null,
             AddedToken eosToken = null,
             AddedToken unkToken = null,
@@ -52,6 +58,11 @@ namespace Doji.AI.Transformers {
             // 4 init the parent class
             base.Initialize(
                 modelMaxLength,
+                paddingSide,
+                truncationSide,
+                modelInputNames,
+                cleanUpTokenizationSpaces,
+                splitSpecialTokens,
                 bosToken,
                 eosToken,
                 unkToken,
@@ -160,5 +171,177 @@ namespace Doji.AI.Transformers {
             }
         }
 
+        protected override BatchEncoding EncodePlus(
+            string text,
+            string textPair = null,
+            bool addSpecialTokens = true,
+            Padding padding = Padding.None,
+            Truncation truncation = Truncation.None,
+            int? maxLength = null,
+            int stride = 0,
+            bool isSplitIntoWords = false,
+            int? padToMultipleOf = null,
+            bool? returnTokenTypesIds = null,
+            bool? returnAttentionMask = null,
+            bool returnOverflowingTokens = false,
+            bool returnSpecialTokensMask = false,
+            bool returnOffsetsMapping = false,
+            bool returnLength = false,
+            bool verbose = true)
+        {
+
+            //if (text is string) {
+                var tokens = Tokenize(text);
+                return ConvertTokensToIds(tokens);
+            /*} else if (text is IEnumerable<string> && ((IEnumerable<string>)text).Any()) {
+                if (isSplitIntoWords) {
+                    var tokens = ((IEnumerable<string>)text)
+                        .SelectMany(t => Tokenize(t, isSplitIntoWords))
+                        .ToList();
+                    return ConvertTokensToIds(tokens);
+                } else {
+                    return ConvertTokensToIds((IEnumerable<string>)text);
+                }
+            } else if (text is IEnumerable<int> && ((IEnumerable<int>)text).Any()) {
+                return ((IEnumerable<int>)text).ToList();
+            } else {
+                if (isSplitIntoWords) {
+                    throw new ArgumentException($"Input {text} is not valid. Should be a string or a list/tuple of strings when `isSplitIntoWords=true`.");
+                } else {
+                    throw new ArgumentException($"Input {text} is not valid. Should be a string, a list/tuple of strings, or a list/tuple of integers.");
+                }
+            }*/
+        }
+
+        /// <summary>
+        /// Converts a string into a sequence of tokens, using the tokenizer.
+        /// Split in words for word-based vocabulary or sub-words for sub-word-based vocabularies
+        /// (BPE/SentencePieces/WordPieces). Takes care of added tokens.
+        /// </summary>
+        protected override List<string> Tokenize(string text, string textPair = null) {
+            bool splitSpecialTokens = SplitSpecialTokens;
+
+            if (DoLowerCase == true) {
+                // convert non-special tokens to lowercase. Might be super slow as well?
+                List<string> escapedSpecialToks = AllSpecialTokens.Select(sTok => Regex.Escape(sTok)).ToList();
+                escapedSpecialToks.AddRange(
+                    AddedTokensDecoder.Values
+                        .Where(sTok => !sTok.Special && sTok.Normalized)
+                        .Select(sTok => Regex.Escape(sTok.Content))
+                );
+                string pattern = "(" + string.Join("|", escapedSpecialToks) + @")|(.+?)";
+                text = Regex.Replace(text, pattern, m => m.Groups[1].Success ? m.Groups[1].Value : m.Groups[2].Value.ToLower());
+            }
+
+            List<string> noSplitToken;
+            List<string> tokens;
+
+            if (splitSpecialTokens) {
+                noSplitToken = new List<string>();
+                tokens = new List<string> { text };
+            } else {
+                noSplitToken = AddedTokensEncoder.Keys.ToList();
+                tokens = _tokensTrie.Split(text).ToList();
+            }
+
+            for (int i = 0; i < tokens.Count; i++) {
+                string token = tokens[i];
+                if (noSplitToken.Contains(token)) {
+                    AddedToken tokExtended = AddedTokensDecoder.TryGetValue(AddedTokensEncoder[token], out var value)
+                        ? value
+                        : null;
+                    string left = i > 0 ? tokens[i - 1] : null;
+                    string right = i < tokens.Count - 1 ? tokens[i + 1] : null;
+
+                    if (tokExtended is AddedToken addedToken) {
+                        if (addedToken.Rstrip && right != null) {
+                            tokens[i + 1] = right.TrimStart();
+                        }
+
+                        if (addedToken.Lstrip && left != null) {
+                            tokens[i - 1] = left.TrimEnd();
+                        }
+
+                        if (addedToken.SingleWord && left != null && left.EndsWith(" ")) {
+                            tokens[i - 1] += token;
+                            tokens[i] = "";
+                        } else if (addedToken.SingleWord && right != null && right.StartsWith(" ")) {
+                            tokens[i + 1] = token + tokens[i + 1];
+                            tokens[i] = "";
+                        }
+                    } else {
+                        throw new InvalidOperationException(
+                            $"{tokExtended} cannot be tokenized because it was not properly added " +
+                            $"to the tokenizer. This means that it is not an `AddedToken` but a {tokExtended?.GetType()}"
+                        );
+                    }
+                }
+            }
+
+            List<string> tokenizedText = new List<string>();
+            foreach (string token in tokens.Where(token => !string.IsNullOrEmpty(token))) {
+                if (noSplitToken.Contains(token)) {
+                    tokenizedText.Add(token);
+                } else {
+                    tokenizedText.AddRange(_Tokenize(token));
+                }
+            }
+
+            return tokenizedText;
+        }
+
+        /// <summary>
+        /// Converts a string into a sequence of tokens (string), using the tokenizer.
+        /// Split in words for word-based vocabulary or sub-words for sub-word-based
+        /// vocabularies (BPE/SentencePieces/WordPieces).
+        /// Do NOT take care of added tokens.
+        /// </summary>
+        protected virtual List<string> _Tokenize(string text) {
+            throw new NotImplementedException($"This tokenizer does not implement {nameof(_Tokenize)}");
+        }
+
+        /// <summary>
+        /// Converts a sequence of tokens into sequence of ids using the vocabulary.
+        /// </summary>
+        private List<int> ConvertTokensToIds(List<string> tokens) {
+            if (tokens == null) {
+                return null;
+            }
+
+            List<int> ids = new List<int>();
+            foreach (var token in tokens) {
+                ids.Add(ConvertTokenToIdWithAddedVoc(token));
+            }
+
+            return ids;
+        }
+
+        /// <summary>
+        /// Converts a token string into a single integer id using the vocabulary.
+        /// </summary>
+        private int ConvertTokensToIds(string tokens) {
+            if (tokens == null) {
+                //TODO: check if this makes sense
+                return -1;
+            }
+
+            return ConvertTokenToIdWithAddedVoc(tokens);
+        }
+
+        private int ConvertTokenToIdWithAddedVoc(string token) {
+            if (token == null) {
+                return -1;
+            }
+
+            if (AddedTokensEncoder.ContainsKey(token)) {
+                return AddedTokensEncoder[token];
+            }
+
+            return ConvertTokenToId(token);
+        }
+
+        protected virtual int ConvertTokenToId(string token) {
+            throw new NotImplementedException($"This tokenizer does not implement {nameof(ConvertTokenToId)}");
+        }
     }
 }

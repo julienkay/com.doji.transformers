@@ -9,7 +9,7 @@ namespace Doji.AI.Transformers {
     /// </summary>
     public class AddedToken : Token {
 
-        public bool Single_Word { get; set; }
+        public bool SingleWord { get; set; }
         public bool Lstrip { get; set; }
         public bool Rstrip { get; set; }
         public bool Special { get; set; }
@@ -18,14 +18,14 @@ namespace Doji.AI.Transformers {
 
         public AddedToken(
             string content,
-            bool single_word = false,
+            bool singleWord = false,
             bool lstrip = false,
             bool rstrip = false,
             bool special = false,
             bool? normalized = null)
         {
             Content = content;
-            Single_Word = single_word;
+            SingleWord = singleWord;
             Lstrip = lstrip;
             Rstrip = rstrip;
             Special = special;
