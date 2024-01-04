@@ -1,6 +1,11 @@
 using System;
 using System.Collections.Generic;
-using Unity.Sentis.Layers;
+using TextInput = System.String;
+using PreTokenizedInput = System.Collections.Generic.List<string>;
+using EncodedInput = System.Collections.Generic.List<string>;
+using TextInputPair = System.Tuple<string, string>;
+using PreTokenizedInputPair = System.Tuple<System.Collections.Generic.List<string>, System.Collections.Generic.List<string>>;
+using EncodedInputPair = System.Tuple<System.Collections.Generic.List<int>, System.Collections.Generic.List<int>>;
 
 namespace Doji.AI.Transformers {
 
@@ -57,8 +62,10 @@ namespace Doji.AI.Transformers {
         OnlyFirst
     }
 
+    public enum Side { Right, Left }
+
     /// <summary>
-    /// Base classe common to both the slow and the fast tokenization classes.
+    /// Base class common to both the slow and the fast tokenization classes.
     /// (host all the user fronting encoding methods)
     /// Special token mixing(host the special tokens logic) and BatchEncoding
     /// (wrap the dictionary of output with special method for the Fast tokenizers)
@@ -66,9 +73,21 @@ namespace Doji.AI.Transformers {
     public abstract partial class PreTrainedTokenizerBase {
 
         public int? ModelMaxLength { get; set; }
+        public Side PaddingSide { get; set; }
+        public Side TruncationSide { get; set; }
+
+        public List<string> ModelInputNames = new List<string>() { "input_ids", "token_type_ids", "attention_mask" };
+        public bool CleanUpTokenizationSpaces { get; set; }
+        public bool SplitSpecialTokens { get; set; }
+        public bool InTargetContextManager { get; set; }
 
         protected virtual void Initialize(
-            int? modelMaxLength = null,
+            int modelMaxLength = int.MaxValue,
+            Side paddingSide = Side.Right,
+            Side truncationSide = Side.Right,
+            List<string> modelInputNames = null,
+            bool cleanUpTokenizationSpaces = true,
+            bool splitSpecialTokens = false,
             AddedToken bosToken = null,
             AddedToken eosToken = null,
             AddedToken unkToken = null,
@@ -78,9 +97,13 @@ namespace Doji.AI.Transformers {
             AddedToken maskToken = null,
             Dictionary<int, AddedToken> addedTokensDecoder = null)
         {
-            ModelMaxLength = modelMaxLength ?? int.MaxValue;
-
-            //...
+            ModelMaxLength = modelMaxLength;
+            PaddingSide = paddingSide;
+            TruncationSide = truncationSide;
+            ModelInputNames = modelInputNames ?? new List<string>();
+            CleanUpTokenizationSpaces = cleanUpTokenizationSpaces;
+            SplitSpecialTokens = splitSpecialTokens;
+            InTargetContextManager = false;
 
             InitializeSpecialTokensMixin(
                 bosToken,
@@ -96,25 +119,159 @@ namespace Doji.AI.Transformers {
         /// <summary>
         /// Main method to tokenize and prepare a prompt for the model.
         /// </summary>
-        public int EncodePrompt(
-            string text,
+        /// <remarks>
+        /// PreTrainedTokenizerBase.__call__
+        /// </remarks>
+        public BatchEncoding EncodePrompt(
+            string text = null,
+            string textPair = null,
+            string textTarget = null,
+            string textPairTarget = null,
+            bool addSpecialTokens = true,
             Padding padding = Padding.None,
             Truncation truncation= Truncation.None,
-            int? maxLengh = null,
+            int? maxLength = null,
             int stride = 0,
             bool isSplitIntoWords = false,
             int? padToMultipleOf = null,
-            bool? return_token_type_ids = null,
-            bool? return_attention_mask = null,
-            bool return_overflowing_tokens = false,
-            bool return_special_tokens_mask = false,
-            bool return_offsets_mapping = false,
-            bool return_length = false,
+            bool? returnTokenTypesIds = null,
+            bool? returnAttentionMask = null,
+            bool returnOverflowingTokens = false,
+            bool returnSpecialTokensMask = false,
+            bool returnOffsetsMapping = false,
+            bool returnLength = false,
             bool verbose = true)
         {
-            return 0;
+            if (text == null && textTarget == null) {
+                throw new ArgumentException("You need to specify either `text` or `textTarget`.");
+            }
 
+            BatchEncoding encodings = null;
+            BatchEncoding targetEncodings = null;
+
+            if (text != null) {
+                // The context manager will send the inputs as normal texts and not textTarget,
+                // but we shouldn't change the input mode in this case.
+                if (!InTargetContextManager) {
+                    SwitchToInputMode();
+                }
+                encodings = EncodePromptOne(text, textPair);
+            }
+
+            if (textTarget != null) {
+                SwitchToTargetMode();
+                targetEncodings = EncodePromptOne(textTarget, textPairTarget);
+            }
+
+            // Leave back tokenizer in input mode
+            SwitchToInputMode();
+
+            if (textTarget == null) {
+                return encodings;
+            } else if (text == null) {
+                return targetEncodings;
+            } else {
+                encodings["labels"] = targetEncodings["input_ids"];
+                return encodings;
+            }
         }
+
+        private BatchEncoding EncodePromptOne(
+            string text,
+            string textPair = null,
+            bool addSpecialTokens = true,
+            Padding padding = Padding.None,
+            Truncation truncation = Truncation.None,
+            int? maxLength = null,
+            int stride = 0,
+            bool isSplitIntoWords = false,
+            int? padToMultipleOf = null,
+            bool? returnTokenTypesIds = null,
+            bool? returnAttentionMask = null,
+            bool returnOverflowingTokens = false,
+            bool returnSpecialTokensMask = false,
+            bool returnOffsetsMapping = false,
+            bool returnLength = false,
+            bool verbose = true)
+        {
+            if (!IsValidTextInput(text)) {
+                throw new ArgumentException("text input must be of type `str` (single example), `List[str]` (batch or single pretokenized example) " +
+                                            "or `List<List[str]]` (batch of pretokenized examples).");
+            }
+
+            if (textPair != null && !IsValidTextInput(textPair)) {
+                throw new ArgumentException("text input must be of type `str` (single example), `List[str]` (batch or single pretokenized example) " +
+                                            "or `List<List[str]]` (batch of pretokenized examples).");
+            }
+
+            // only non-batched version implemented for now
+            return EncodePlus(text, textPair, addSpecialTokens, padding, truncation, maxLength, stride,
+                        isSplitIntoWords, padToMultipleOf, returnTokenTypesIds,
+                        returnAttentionMask, returnOverflowingTokens, returnSpecialTokensMask,
+                        returnOffsetsMapping, returnLength, verbose);
+        }
+
+        protected virtual BatchEncoding EncodePlus(
+            string text,
+            string textPair = null,
+            bool addSpecialTokens = true,
+            Padding padding = Padding.None,
+            Truncation truncation = Truncation.None,
+            int? maxLength = null,
+            int stride = 0,
+            bool isSplitIntoWords = false,
+            int? padToMultipleOf = null,
+            bool? returnTokenTypesIds = null,
+            bool? returnAttentionMask = null,
+            bool returnOverflowingTokens = false,
+            bool returnSpecialTokensMask = false,
+            bool returnOffsetsMapping = false,
+            bool returnLength = false,
+            bool verbose = true)
+        {
+            throw new NotImplementedException($"This tokenizer does not implement {nameof(EncodePlus)}");
+        }
+
+        /// <summary>
+        /// Converts a string into a sequence of tokens, replacing unknown tokens with the `unk_token`.
+        /// </summary>
+        protected virtual List<string> Tokenize(string text, string textPair = null) {
+            throw new NotImplementedException($"This tokenizer does not implement {nameof(Tokenize)}");
+        }
+
+        /// <summary>
+        /// Input type checking.
+        /// </summary>
+        /// <remarks>
+        /// Sketchy port. TODO: validate me!
+        /// </remarks>
+        private static bool IsValidTextInput(object t) {
+            if (t is string) {
+                // Strings are fine
+                return true;
+            } else if (t is IList<object> list) {
+                // List is fine as long as it is...
+                if (list.Count == 0) {
+                    // ... empty
+                    return true;
+                } else if (list[0] is string) {
+                    // ... list of strings
+                    return true;
+                } else if (list[0] is IList<string> innerList) {
+                    // ... list with an empty list or with a list of strings
+                    return innerList.Count == 0 || innerList[0] is string;
+                } else if (list[0] is Tuple<object, object> tuple) {
+                    return tuple.Item1 is string;
+                } else {
+                    return false;
+                }
+            } else {
+                return false;
+            }
+        }
+
+        public virtual void SwitchToInputMode() { }
+        public virtual void SwitchToTargetMode() { }
 
         /// <summary>
         /// Returns the vocabulary as a dictionary of token to index.
@@ -123,7 +280,7 @@ namespace Doji.AI.Transformers {
         /// is in the vocab.
         /// </summary>
         protected virtual Dictionary<string, int> GetVocab() {
-            throw new NotImplementedException();
+            throw new NotImplementedException($"This tokenizer does not implement {nameof(GetVocab)}");
         }
     }
 }
