@@ -41,7 +41,7 @@ namespace Doji.AI.Transformers {
         public BasicTokenizer(
             bool doLowerCase = true,
             List<string> neverSplit = null,
-            bool tokenizeChineseChars = true,
+            bool tokenizeChineseChars = false,
             bool? stripAccents = null,
             bool doSPlitOnPunc = true
         ) {
@@ -56,6 +56,9 @@ namespace Doji.AI.Transformers {
             text = CleanText(text);
 
             //TODO: implement tokenize chinese chars
+            if (_tokenizeChineseChars) {
+                throw new NotImplementedException("BasicTokenizer currently does not support chinese characters.");
+            }
 
             // prevents treating the same character with different unicode codepoints as different characters
             string unicodeNormalized = text.Normalize(NormalizationForm.FormC);

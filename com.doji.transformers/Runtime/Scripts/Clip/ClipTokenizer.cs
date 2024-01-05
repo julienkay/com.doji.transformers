@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Doji.AI.Transformers {
@@ -19,9 +20,10 @@ namespace Doji.AI.Transformers {
         private Vocab Vocab { get; set; }
 
         private BasicTokenizer _nlp;
+        private object _fixText;
         private Dictionary<int, char> _byteEncoder;
         private Dictionary<char, int> _byteDecoder;
-        private Dictionary<Tuple<string, string>, int> bpeRanks;
+        private Dictionary<Tuple<string, string>, int> _bpeRanks;
         private Dictionary<string, string> _cache;
         private Regex _pat;
 
@@ -75,15 +77,21 @@ namespace Doji.AI.Transformers {
             AddedToken eosToken,
             AddedToken padToken,
             Dictionary<int, AddedToken> addedTokensDecoder = null,
-            int? modelMaxLength = null)
+            int modelMaxLength = int.MaxValue,
+            Side paddingSide = Side.Right,
+            Side truncationSide = Side.Right,
+            List<string> modelInputNames = null,
+            bool cleanUpTokenizationSpaces = true,
+            bool splitSpecialTokens = false)
         {
             BosToken = bosToken;
             EosToken = eosToken;
             UnkToken = unkToken;
             PadToken = padToken;
 
-            // TODO: BasicTokenizer only a fallback, implmenet ftfy.fix_text instead?
+            // TODO: BasicTokenizer only a fallback, implement ftfy.fix_text instead?
             _nlp = new BasicTokenizer();
+            _fixText = null;
             Vocab = vocab;
             _byteEncoder = BytesToUnicode();
             _byteDecoder = _byteEncoder.ToDictionary(x => x.Value, x => x.Key);
@@ -97,7 +105,7 @@ namespace Doji.AI.Transformers {
                 .ToList();
 
             // Create the dictionary with bpe ranks
-            bpeRanks = bpeMerges
+            _bpeRanks = bpeMerges
                 .Select((merge, index) => new { Merge = merge, Index = index })
                 .ToDictionary(item => item.Merge, item => item.Index);
 
@@ -113,6 +121,11 @@ namespace Doji.AI.Transformers {
 
             base.Initialize(
                 modelMaxLength,
+                paddingSide,
+                truncationSide,
+                modelInputNames,
+                cleanUpTokenizationSpaces,
+                splitSpecialTokens,
                 unkToken,
                 bosToken,
                 eosToken,
@@ -159,6 +172,111 @@ namespace Doji.AI.Transformers {
             }
 
             return result;
+        }
+
+        /// <summary>
+        /// Return set of symbol pairs in a word.
+        /// Word is represented as tuple of symbols (symbols being variable-length strings).
+        /// </summary>
+        private static HashSet<Tuple<string, string>> GetPairs(List<string> word) {
+            var pairs = new HashSet<Tuple<string, string>>();
+            string prevChar = word[0];
+
+            for (int i = 1; i < word.Count; i++) {
+                pairs.Add(new Tuple<string, string>(prevChar, word[i]));
+                prevChar = word[i];
+            }
+
+            return pairs;
+        }
+
+        private string bpe(string token) {
+            if (_cache.ContainsKey(token)) {
+                return _cache[token];
+            }
+            List<string> word = token.Take(token.Length - 1).Select(c => c.ToString()).ToList();
+            word.Add(token.Last() + "</w>");
+            var pairs = GetPairs(word);
+            if (pairs.Count == 0) {
+                return token + "</w>";
+            }
+
+            while (true) {
+                var bigram = pairs.OrderBy(pair => _bpeRanks.GetValueOrDefault(pair, int.MaxValue)).First();
+                if (!_bpeRanks.ContainsKey(bigram)) {
+                    break;
+                }
+
+                var first = bigram.Item1;
+                var second = bigram.Item2;
+                var newWord = new List<string>();
+                var i = 0;
+
+                while (i < word.Count) {
+                    int j = word.IndexOf(first, i);
+                    if (j == -1) {
+                        newWord.AddRange(Slice(word, i));
+                        break;
+                    }
+
+                    newWord.AddRange(Slice(word, i, j));
+                    i = j;
+
+                    if (word[i] == first && i < word.Count - 1 && word[i + 1] == second) {
+                        newWord.Add(first + second);
+                        i += 2;
+                    } else {
+                        newWord.Add(word[i]);
+                        i += 1;
+                    }
+
+                }
+
+                word = new List<string>(newWord);
+                if (word.Count == 1) {
+                    break;
+                } else {
+                    pairs = GetPairs(word);
+                }
+            }
+
+            string result = string.Join(" ", word);
+            _cache[token] = result;
+            return result;
+        }
+
+        private List<string> Slice(List<string> word, int start) {
+            if (start < 0 || start >= word.Count) {
+                throw new ArgumentException("start index out of range.");
+            }
+            return word.GetRange(start, word.Count - start);
+        }
+
+        private List<string> Slice(List<string> word, int start, int end) {
+            if (start < 0 || end >= word.Count || start > end) {
+                throw new ArgumentException("start or end index out of range.");
+            }
+            return word.GetRange(start, end - start);
+        }
+
+        /// <summary>
+        /// Tokenize a string.
+        /// </summary>
+        protected override List<string> _Tokenize(string text) {
+            List<string> bpeTokens = new List<string>();
+            if (_fixText == null) {
+                text = string.Join(" ", _nlp.Tokenize(text));
+            } else {
+                //text = Regex.Replace(_fixText(text).ToLower(), @"\s+", " ").Trim();
+                throw new NotImplementedException();
+            }
+
+            foreach (var match in _pat.Matches(text)) {
+                var token = string.Join("", Encoding.UTF8.GetBytes(match.ToString()).Select(b => _byteEncoder[b]));
+                bpeTokens.AddRange(bpe(token).Split(' '));
+            }
+
+            return bpeTokens;
         }
     }
 }
