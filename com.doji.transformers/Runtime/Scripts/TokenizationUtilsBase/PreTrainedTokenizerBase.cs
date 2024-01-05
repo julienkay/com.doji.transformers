@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using TextInput = System.String;
 using PreTokenizedInput = System.Collections.Generic.List<string>;
 using EncodedInput = System.Collections.Generic.List<string>;
@@ -67,8 +68,10 @@ namespace Doji.AI.Transformers {
     /// <summary>
     /// Base class common to both the slow and the fast tokenization classes.
     /// (host all the user fronting encoding methods)
-    /// Special token mixing(host the special tokens logic) and BatchEncoding
-    /// (wrap the dictionary of output with special method for the Fast tokenizers)
+    /// Special token mixing (host the special tokens logic) implemented via
+    /// <see cref="ISpecialTokensMixin"/> 
+    /// BatchEncoding (wrap the dictionary of output with special method for
+    /// the Fast tokenizers) via <see cref="BatchEncoding"/>
     /// </summary>
     public abstract partial class PreTrainedTokenizerBase {
 
@@ -79,6 +82,7 @@ namespace Doji.AI.Transformers {
         public List<string> ModelInputNames = new List<string>() { "input_ids", "token_type_ids", "attention_mask" };
         public bool CleanUpTokenizationSpaces { get; set; }
         public bool SplitSpecialTokens { get; set; }
+        public HashSet<string> DeprecationWarnings { get; set; }
         public bool InTargetContextManager { get; set; }
 
         protected virtual void Initialize(
@@ -103,6 +107,7 @@ namespace Doji.AI.Transformers {
             ModelInputNames = modelInputNames ?? new List<string>();
             CleanUpTokenizationSpaces = cleanUpTokenizationSpaces;
             SplitSpecialTokens = splitSpecialTokens;
+            DeprecationWarnings = new HashSet<string> { };
             InTargetContextManager = false;
 
             InitializeSpecialTokensMixin(
@@ -114,6 +119,15 @@ namespace Doji.AI.Transformers {
                 clsToken,
                 maskToken
             );
+        }
+
+        /// <summary>
+        /// Returns the number of added tokens when encoding a sequence with special tokens.
+        /// </summary>
+        /// <param name="pair">Whether the number of added tokens should be computed in the
+        /// case of a sequence pair or a single sequence.</param>
+        protected virtual int NumSpecialTokensToAdd(bool pair = false) {
+            throw new NotImplementedException($"This tokenizer does not implement {nameof(NumSpecialTokensToAdd)}");
         }
 
         /// <summary>
@@ -134,7 +148,7 @@ namespace Doji.AI.Transformers {
             int stride = 0,
             bool isSplitIntoWords = false,
             int? padToMultipleOf = null,
-            bool? returnTokenTypesIds = null,
+            bool? returnTokenTypeIds = null,
             bool? returnAttentionMask = null,
             bool returnOverflowingTokens = false,
             bool returnSpecialTokensMask = false,
@@ -186,7 +200,7 @@ namespace Doji.AI.Transformers {
             int stride = 0,
             bool isSplitIntoWords = false,
             int? padToMultipleOf = null,
-            bool? returnTokenTypesIds = null,
+            bool? returnTokenTypeIds = null,
             bool? returnAttentionMask = null,
             bool returnOverflowingTokens = false,
             bool returnSpecialTokensMask = false,
@@ -206,7 +220,7 @@ namespace Doji.AI.Transformers {
 
             // only non-batched version implemented for now
             return EncodePlus(text, textPair, addSpecialTokens, padding, truncation, maxLength, stride,
-                        isSplitIntoWords, padToMultipleOf, returnTokenTypesIds,
+                        isSplitIntoWords, padToMultipleOf, returnTokenTypeIds,
                         returnAttentionMask, returnOverflowingTokens, returnSpecialTokensMask,
                         returnOffsetsMapping, returnLength, verbose);
         }
@@ -221,7 +235,7 @@ namespace Doji.AI.Transformers {
             int stride = 0,
             bool isSplitIntoWords = false,
             int? padToMultipleOf = null,
-            bool? returnTokenTypesIds = null,
+            bool? returnTokenTypeIds = null,
             bool? returnAttentionMask = null,
             bool returnOverflowingTokens = false,
             bool returnSpecialTokensMask = false,
@@ -267,6 +281,310 @@ namespace Doji.AI.Transformers {
                 }
             } else {
                 return false;
+            }
+        }
+
+        /// <summary>
+        /// Create the token type IDs corresponding to the sequences passed.
+        /// Should be overridden in a subclass if the model has a special way of building those.
+        /// </summary>
+        /// <param name="TokenIds0"></param>
+        /// <param name="TokenIds1"></param>
+        /// <returns></returns>
+        public virtual List<int> CreateTokenTypeIdsFromSequences(List<int> TokenIds0, List<int> TokenIds1 = null) {
+            if (TokenIds1 == null) {
+                return new List<int>(new int[TokenIds0.Count]);
+            }
+
+            List<int> tokenTypeIds = new List<int>(TokenIds0.Count + TokenIds1.Count);
+
+            for (int i = 0; i < TokenIds0.Count; i++) {
+                tokenTypeIds.Add(0);
+            }
+
+            for (int i = 0; i < TokenIds1.Count; i++) {
+                tokenTypeIds.Add(1);
+            }
+
+            return tokenTypeIds;
+        }
+
+        /// <summary>
+        /// Build model inputs from a sequence or a pair of sequence
+        /// for sequence classification tasks by concatenating and
+        /// adding special tokens.
+        /// This implementation does not add special tokens and this method should be overridden in a subclass.
+        /// </summary>
+        protected virtual List<int> BuildInputsWithSpecialTokens(List<int> TokenIds0, List<int> TokenIds1 = null) {
+            if (TokenIds1 == null) {
+                return TokenIds0;
+            }
+
+            List<int> result = new List<int>(TokenIds0);
+            result.AddRange(TokenIds1);
+            return result;
+        }
+
+        /// <summary>
+        /// Prepares a sequence of input id, or a pair of sequences of inputs ids
+        /// so that it can be used by the model. It adds special tokens, truncates
+        /// sequences if overflowing while taking into account the special tokens and
+        /// manages a moving window(with user defined stride) for overflowing tokens.
+        /// </summary>
+        /// <remarks>
+        /// Please Note, for *pair_ids* different than `None` and
+        /// * truncation_strategy = longest_first * or `True`, it is not possible to return
+        /// overflowing tokens. Such a combination of arguments will raise an error.
+        /// </remarks>
+        protected BatchEncoding PrepareForModel(
+            List<int> ids,
+            List<int> pairIds = null,
+            bool addSpecialTokens = true,
+            Padding padding = Padding.None,
+            Truncation truncation = Truncation.None,
+            int? maxLength = null,
+            int stride = 0,
+            bool isSplitIntoWords = false,
+            int? padToMultipleOf = null,
+            bool? returnTokenTypeIds = null,
+            bool? returnAttentionMask = null,
+            bool returnOverflowingTokens = false,
+            bool returnSpecialTokensMask = false,
+            bool returnOffsetsMapping = false,
+            bool returnLength = false,
+            bool verbose = true,
+            bool prependBatchAxis = false)
+        {
+            bool pair = pairIds != null;
+            int lenIds = ids.Count;
+            int lenPairIds = pair ? pairIds.Count : 0;
+
+            if (returnTokenTypeIds == true && !addSpecialTokens) {
+                throw new ArgumentException(
+                    "Asking to return token_type_ids while setting add_special_tokens to False " +
+                    "results in an undefined behavior. Please set add_special_tokens to True or " +
+                    "set return_token_type_ids to None."
+                );
+            }
+
+            if (returnOverflowingTokens
+                && truncation == Truncation.LongestFirst
+                && pairIds != null) {
+                throw new ArgumentException(
+                    "Not possible to return overflowing tokens for a pair of sequences with the " +
+                    "`longest_first`. Please select another truncation strategy than `longest_first`, " +
+                    "for instance `only_second` or `only_first`."
+                );
+            }
+
+            // Load from model defaults
+            if (!returnTokenTypeIds.HasValue) {
+                returnTokenTypeIds = ModelInputNames.Contains("token_type_ids");
+            }
+
+            if (!returnAttentionMask.HasValue) {
+                returnAttentionMask = ModelInputNames.Contains("attention_mask");
+            }
+
+            Dictionary<string, object> encodedInputs = new Dictionary<string, object>();
+
+            // Compute the total size of the returned encodings
+            int totalLen = lenIds + lenPairIds + (addSpecialTokens ? NumSpecialTokensToAdd(pair) : 0);
+
+            // Truncation: Handle max sequence length
+            List<int> overflowingTokens = null;
+            if (truncation != Truncation.None && maxLength > 0 && totalLen > maxLength) {
+                Tuple<List<int>, List<int>, List<int>> truncationResult = TruncateSequences(
+                    ids,
+                    pairIds,
+                    totalLen - maxLength.Value,
+                    truncation,
+                    stride
+                );
+
+                ids = truncationResult.Item1;
+                pairIds = truncationResult.Item2;
+                overflowingTokens = truncationResult.Item3;
+            }
+
+            if (returnOverflowingTokens) {
+                encodedInputs["overflowing_tokens"] = overflowingTokens;
+                encodedInputs["num_truncated_tokens"] = totalLen - maxLength;
+            }
+
+            // Add special tokens
+            List<int> sequence;
+            List<int> tokenTypeIds;
+            if (addSpecialTokens) {
+                sequence = BuildInputsWithSpecialTokens(ids, pairIds);
+                tokenTypeIds = CreateTokenTypeIdsFromSequences(ids, pairIds);
+            } else {
+                sequence = pair ? (List<int>)ids.Concat(pairIds) : new List<int>(ids);
+                tokenTypeIds = new List<int>(Enumerable.Repeat(0, ids.Count));
+                if (pair) {
+                    tokenTypeIds.AddRange(Enumerable.Repeat(0, pairIds.Count));
+                }
+            }
+
+            // build output dictionary
+            encodedInputs["input_ids"] = sequence;
+            if (returnTokenTypeIds == true) {
+                encodedInputs["token_type_ids"] = tokenTypeIds;
+            } 
+            if (returnSpecialTokensMask) {
+                if (addSpecialTokens) {
+                    encodedInputs["special_tokens_mask"] = GetSpecialTokensMask(ids, pairIds); ;
+                } else {
+                    encodedInputs["special_tokens_mask"] = Enumerable.Repeat(0, sequence.Count).ToList();
+                }
+            }
+
+            // Check lengths
+            /*EventualWarnAboutTooLongSequence(encodedInputs["input_ids"], maxLength, verbose);
+
+            // Padding
+            if (padding != Padding.None || returnAttentionMask == true) {
+                encoded_inputs = pad(
+                    encoded_inputs,
+                    max_length = max_length,
+                    padding = padding_strategy.value,
+                    pad_to_multiple_of = pad_to_multiple_of,
+                    return_attention_mask = return_attention_mask,
+
+                );
+            }
+
+            if (returnLength) {
+                encodedInputs["length"] = len(encodedInputs["input_ids"]);
+            }
+
+            batchOutputs = BatchEncoding(
+                encoded_inputs, tensor_type = return_tensors, prepend_batch_axis = prepend_batch_axis
+            )*/
+            return null;
+        }
+
+        public Tuple<List<int>, List<int>, List<int>> TruncateSequences(
+            List<int> ids,
+            List<int> pairIds = null,
+            int numTokensToRemove = 0,
+            Truncation Truncation = Truncation.None,
+            int stride = 0)
+        {
+            if (numTokensToRemove <= 0) {
+                return Tuple.Create(ids, pairIds, new List<int>());
+            }
+
+            Truncation strategy = Truncation;
+            List<int> overflowingTokens = new List<int>();
+
+            if (strategy == Truncation.OnlyFirst || (strategy == Truncation.LongestFirst && pairIds == null)) {
+                if (ids.Count > numTokensToRemove) {
+                    int windowLen = Math.Min(ids.Count, stride + numTokensToRemove);
+
+                    if (TruncationSide == Side.Left) {
+                        overflowingTokens = ids.GetRange(0, windowLen);
+                        ids = ids.GetRange(numTokensToRemove, ids.Count - numTokensToRemove);
+                    } else if (TruncationSide == Side.Right) {
+                        overflowingTokens = ids.GetRange(ids.Count - windowLen, windowLen);
+                        ids = ids.GetRange(0, ids.Count - numTokensToRemove);
+                    } else {
+                        throw new ArgumentException($"Invalid truncation strategy: {TruncationSide}, use 'left' or 'right'.");
+                    }
+                } else {
+                    string errorMsg = $"We need to remove {numTokensToRemove} to truncate the input " +
+                                        $"but the first sequence has a length {ids.Count}. ";
+
+                    if (strategy == Truncation.OnlyFirst) {
+                        errorMsg += $"Please select another truncation strategy than {strategy}, " +
+                                    "for instance 'longest_first' or 'only_second'.";
+                    }
+
+                    Console.WriteLine(errorMsg);
+                }
+            } else if (strategy == Truncation.LongestFirst) {
+                Console.WriteLine("Be aware, overflowing tokens are not returned for the setting you have chosen," +
+                                    $" i.e. sequence pairs with the '{Truncation.LongestFirst}' " +
+                                    "truncation strategy. So the returned list will always be empty even if some " +
+                                    "tokens have been removed.");
+
+                for (int i = 0; i < numTokensToRemove; i++) {
+                    if (pairIds == null || ids.Count > pairIds.Count) {
+                        if (TruncationSide == Side.Right) {
+                            ids.RemoveAt(ids.Count - 1);
+                        } else if (TruncationSide == Side.Left) {
+                            ids.RemoveAt(0);
+                        } else {
+                            throw new ArgumentException("Invalid truncation strategy:" + TruncationSide);
+                        }
+                    } else {
+                        if (TruncationSide == Side.Right) {
+                            pairIds.RemoveAt(pairIds.Count - 1);
+                        } else if (TruncationSide == Side.Left) {
+                            pairIds.RemoveAt(0);
+                        } else {
+                            throw new ArgumentException("Invalid truncation strategy:" + TruncationSide);
+                        }
+                    }
+                }
+            } else if (strategy == Truncation.OnlySecond && pairIds != null) {
+                if (pairIds.Count > numTokensToRemove) {
+                    int windowLen = Math.Min(pairIds.Count, stride + numTokensToRemove);
+
+                    if (TruncationSide == Side.Right) {
+                        overflowingTokens = pairIds.GetRange(pairIds.Count - windowLen, windowLen);
+                        pairIds = pairIds.GetRange(0, pairIds.Count - numTokensToRemove);
+                    } else if (TruncationSide == Side.Left) {
+                        overflowingTokens = pairIds.GetRange(0, windowLen);
+                        pairIds = pairIds.GetRange(numTokensToRemove, pairIds.Count - numTokensToRemove);
+                    } else {
+                        throw new ArgumentException("Invalid truncation strategy:" + TruncationSide);
+                    }
+                } else {
+                    Console.WriteLine($"We need to remove {numTokensToRemove} to truncate the input " +
+                                        $"but the second sequence has a length {pairIds.Count}. " +
+                                        $"Please select another truncation strategy than {strategy}, " +
+                                        "for instance 'longest_first' or 'only_first'.");
+                }
+            }
+
+            return Tuple.Create(ids, pairIds, overflowingTokens);
+        }
+
+        /// <summary>
+        /// Retrieves sequence ids from a token list that has no special tokens added.
+        /// This method is called when adding special tokens using the tokenizer
+        /// `prepare_for_model` or `encode_plus` methods.
+        /// </summary>
+        /// <returns>A list of integers in the range [0, 1]: 1 for a special token, 0 for a sequence token.</returns>
+        public virtual List<int> GetSpecialTokensMask(List<int> tokenIds0, List<int> tokenIds1, bool alreadyHasSpecialTokens = false) {
+            if (!(alreadyHasSpecialTokens && tokenIds1 == null)) {
+                throw new InvalidOperationException("You cannot use alreadyHasSpecialTokens=false with this tokenizer. " +
+                                                    "Please use a slow tokenizer to activate this argument. " +
+                                                    "Or set returnSpecialTokensMask=true when calling the encoding method " +
+                                                    "to get the special tokens mask in any tokenizer.");
+            }
+
+            List<int> specialTokensMask = tokenIds0.Select(token => AllSpecialIds.Contains(token) ? 1 : 0).ToList();
+
+            return specialTokensMask;
+        }
+
+        /// <summary>
+        /// Depending on the input and internal state we might trigger a warning
+        /// about a sequence that is too long for its corresponding model
+        /// </summary>
+        public void EventualWarnAboutTooLongSequence(List<int> ids, int? maxLength, bool verbose) {
+            if (!maxLength.HasValue && ids.Count > ModelMaxLength && verbose) {
+                string warningKey = "sequence-length-is-longer-than-the-specified-maximum";
+
+                if (!DeprecationWarnings.Contains(warningKey)) {
+                    Console.WriteLine($"Token indices sequence length is longer than the specified maximum sequence length " +
+                        $"for this model ({ids.Count} > {ModelMaxLength}). Running this sequence through the model will result" +
+                        $"in indexing errors");
+                }
+
+                DeprecationWarnings.Add(warningKey);
             }
         }
 

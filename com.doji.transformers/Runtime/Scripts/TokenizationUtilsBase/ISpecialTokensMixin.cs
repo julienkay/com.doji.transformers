@@ -22,16 +22,16 @@ namespace Doji.AI.Transformers {
 
         public List<Token> AdditionalSpecialTokens { get; set; }
 
-        public int? BosTokenID { get;}
-        public int? EosTokenID { get; }
-        public int? UnkTokenID { get; }
-        public int? SepTokenID { get; }
-        public int? PadTokenID { get; }
+        public int? BosTokenId { get;}
+        public int? EosTokenId { get; }
+        public int? UnkTokenId { get; }
+        public int? SepTokenId { get; }
+        public int? PadTokenId { get; }
         public int PadTokenTypeID { get; }
-        public int? ClsTokenID { get; }
-        public int? MaskTokenID { get; }
+        public int? ClsTokenId { get; }
+        public int? MaskTokenId { get; }
 
-        public List<int> AdditionalSpecialTokensIDs { get; set; }
+        public List<int> AdditionalSpecialTokensIds { get; set; }
 
         public Dictionary<string, AddedToken> SpecialTokensMap { get; }
 
@@ -39,7 +39,7 @@ namespace Doji.AI.Transformers {
         public List<Token> AllSpecialTokensExtended { get; }
 
         public List<string> AllSpecialTokens { get; }
-        public List<int> AllSpecialIDs { get; }
+        public List<int> AllSpecialIds { get; }
 
         /*public static List<string> SPECIAL_TOKENS_ATTRIBUTES = new List<string>() {
             "bos_token",

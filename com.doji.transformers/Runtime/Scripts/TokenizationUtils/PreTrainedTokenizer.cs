@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
+using Unity.Sentis.Layers;
 
 namespace Doji.AI.Transformers {
 
@@ -171,6 +172,13 @@ namespace Doji.AI.Transformers {
             }
         }
 
+       protected override int NumSpecialTokensToAdd(bool pair = false) {
+            List<int> TokenIds0 = new List<int>();
+            List<int> TokenIds1 = new List<int>();
+
+            return BuildInputsWithSpecialTokens(TokenIds0, pair ? TokenIds1 : null).Count;
+        }
+
         protected override BatchEncoding EncodePlus(
             string text,
             string textPair = null,
@@ -181,7 +189,7 @@ namespace Doji.AI.Transformers {
             int stride = 0,
             bool isSplitIntoWords = false,
             int? padToMultipleOf = null,
-            bool? returnTokenTypesIds = null,
+            bool? returnTokenTypeIds = null,
             bool? returnAttentionMask = null,
             bool returnOverflowingTokens = false,
             bool returnSpecialTokensMask = false,
@@ -189,28 +197,22 @@ namespace Doji.AI.Transformers {
             bool returnLength = false,
             bool verbose = true)
         {
+            if (returnOffsetsMapping) {
+                throw new NotImplementedException(
+                    "returnOffsetsMapping is not available with this tokenizer. " +
+                    "This feature requires a tokenizer deriving from " +
+                    "transformers.PreTrainedTokenizerFast, which has not been " +
+                    "ported to C# yet."
+                );
+            }
 
-            //if (text is string) {
-                var tokens = Tokenize(text);
-                return ConvertTokensToIds(tokens);
-            /*} else if (text is IEnumerable<string> && ((IEnumerable<string>)text).Any()) {
-                if (isSplitIntoWords) {
-                    var tokens = ((IEnumerable<string>)text)
-                        .SelectMany(t => Tokenize(t, isSplitIntoWords))
-                        .ToList();
-                    return ConvertTokensToIds(tokens);
-                } else {
-                    return ConvertTokensToIds((IEnumerable<string>)text);
-                }
-            } else if (text is IEnumerable<int> && ((IEnumerable<int>)text).Any()) {
-                return ((IEnumerable<int>)text).ToList();
-            } else {
-                if (isSplitIntoWords) {
-                    throw new ArgumentException($"Input {text} is not valid. Should be a string or a list/tuple of strings when `isSplitIntoWords=true`.");
-                } else {
-                    throw new ArgumentException($"Input {text} is not valid. Should be a string, a list/tuple of strings, or a list/tuple of integers.");
-                }
-            }*/
+            List<int> firstIds = GetInputIds(text);
+            List<int> secondIds = textPair != null ? GetInputIds(textPair) : null;
+
+            return PrepareForModel(firstIds, secondIds, addSpecialTokens, padding, truncation, maxLength, stride,
+                        isSplitIntoWords, padToMultipleOf, returnTokenTypeIds,
+                        returnAttentionMask, returnOverflowingTokens, returnSpecialTokensMask,
+                        returnOffsetsMapping, returnLength, verbose);
         }
 
         /// <summary>
@@ -300,10 +302,45 @@ namespace Doji.AI.Transformers {
             throw new NotImplementedException($"This tokenizer does not implement {nameof(_Tokenize)}");
         }
 
+        private List<int> GetInputIds(string text) {
+            //if (text is string) {
+            var tokens = Tokenize(text);
+            return ConvertTokensToIds(tokens);
+            /*} else if (text is IEnumerable<string> && ((IEnumerable<string>)text).Any()) {
+                if (isSplitIntoWords) {
+                    var tokens = ((IEnumerable<string>)text)
+                        .SelectMany(t => Tokenize(t, isSplitIntoWords))
+                        .ToList();
+                    return ConvertTokensToIds(tokens);
+                } else {
+                    return ConvertTokensToIds((IEnumerable<string>)text);
+                }
+            } else if (text is IEnumerable<int> && ((IEnumerable<int>)text).Any()) {
+                return ((IEnumerable<int>)text).ToList();
+            } else {
+                if (isSplitIntoWords) {
+                    throw new ArgumentException($"Input {text} is not valid. Should be a string or a list/tuple of strings when `isSplitIntoWords=true`.");
+                } else {
+                    throw new ArgumentException($"Input {text} is not valid. Should be a string, a list/tuple of strings, or a list/tuple of integers.");
+                }
+            }*/
+        }
+
+        public override List<int> GetSpecialTokensMask(List<int> tokenIds0, List<int> tokenIds1, bool alreadyHasSpecialTokens = false) {
+            if (alreadyHasSpecialTokens) {
+                if (tokenIds1 != null) {
+                    throw new ArgumentException("You should not supply a second sequence if the provided sequence of " +
+                                                "ids is already formatted with special tokens for the model.");
+                }
+                return base.GetSpecialTokensMask(tokenIds0, tokenIds1, true);
+            }
+            return Enumerable.Repeat(0, (tokenIds1?.Count ?? 0) + tokenIds0.Count).ToList();
+        }
+
         /// <summary>
         /// Converts a sequence of tokens into sequence of ids using the vocabulary.
         /// </summary>
-        private List<int> ConvertTokensToIds(List<string> tokens) {
+        protected override List<int> ConvertTokensToIds(List<string> tokens) {
             if (tokens == null) {
                 return null;
             }

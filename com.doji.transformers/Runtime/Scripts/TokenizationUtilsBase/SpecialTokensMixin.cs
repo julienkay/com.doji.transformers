@@ -15,27 +15,48 @@ namespace Doji.AI.Transformers {
         public Token MaskToken { get; set; }
         public List<Token> AdditionalSpecialTokens { get; set; }
 
-        public int? BosTokenID => throw new System.NotImplementedException();
+        public int? BosTokenId => throw new System.NotImplementedException();
 
-        public int? EosTokenID => throw new System.NotImplementedException();
+        public int? EosTokenId => throw new System.NotImplementedException();
 
-        public int? UnkTokenID => throw new System.NotImplementedException();
+        public int? UnkTokenId => throw new System.NotImplementedException();
 
-        public int? SepTokenID => throw new System.NotImplementedException();
+        public int? SepTokenId => throw new System.NotImplementedException();
 
-        public int? PadTokenID => throw new System.NotImplementedException();
+        public int? PadTokenId => throw new System.NotImplementedException();
 
         public int PadTokenTypeID { get; private set; }
 
-        public int? ClsTokenID => throw new System.NotImplementedException();
+        public int? ClsTokenId => throw new System.NotImplementedException();
 
-        public int? MaskTokenID => throw new System.NotImplementedException();
+        public int? MaskTokenId => throw new System.NotImplementedException();
 
-        public List<int> AdditionalSpecialTokensIDs { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
+        public List<int> AdditionalSpecialTokensIds { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
 
-        public List<string> AllSpecialTokens => throw new System.NotImplementedException();
+        /// <summary>
+        /// A list of the unique special tokens (`'<unk>'`, `'<cls>'`, ..., etc.).
+        /// Convert tokens of `tokenizers.AddedToken` type to string.
+        /// </summary>
+        public List<string> AllSpecialTokens {
+            get {
+                List<string> allToks = new List<string>();
+                foreach (var s in AllSpecialTokensExtended) {
+                    allToks.Add(s.ToString());
+                }
+                return allToks;
+            }
+        }
 
-        public List<int> AllSpecialIDs => throw new System.NotImplementedException();
+        /// <summary>
+        /// List the ids of the special tokens(`'<unk>'`, `'<cls>'`, etc.) mapped to class attributes.
+        /// </summary>
+        public List<int> AllSpecialIds {
+            get {
+                return ConvertTokensToIds(AllSpecialTokens);
+            }
+        }
+
+        protected abstract List<int> ConvertTokensToIds(List<string> tokens);
 
         public int AddSpecialTokens(Dictionary<string, AddedToken> specialTokensDict, bool replaceAdditionalSpecialTokens = true) {
             throw new System.NotImplementedException();

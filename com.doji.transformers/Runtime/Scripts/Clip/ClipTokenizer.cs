@@ -137,6 +137,25 @@ namespace Doji.AI.Transformers {
             return Vocab.Encoder;
         }
 
+        protected override List<int> BuildInputsWithSpecialTokens(List<int> TokenIds0, List<int> TokenIds1 = null) {
+            List<int> bosToken = new List<int> { BosTokenId.Value };
+            List<int> eosToken = new List<int> { EosTokenId.Value };
+
+            if (TokenIds1 == null) {
+                return CombineLists(bosToken, TokenIds0, eosToken);
+            }
+
+            return CombineLists(bosToken, TokenIds0, eosToken, eosToken, TokenIds1, eosToken);
+
+        }
+        private List<int> CombineLists(params List<int>[] lists) {
+            List<int> result = new List<int>();
+            foreach (var list in lists) {
+                result.AddRange(list);
+            }
+            return result;
+        }
+
         /// <summary>
         /// Returns list of utf-8 byte and a mapping to unicode strings.
         /// We specifically avoids mapping to whitespace/control
@@ -188,6 +207,40 @@ namespace Doji.AI.Transformers {
             }
 
             return pairs;
+        }
+
+        /// <summary>
+        /// represents a special token id
+        /// </summary>
+        private static readonly List<int> ONE = new List<int>() { 1 };
+
+        public override List<int> GetSpecialTokensMask(List<int> tokenIds0, List<int> tokenIds1, bool alreadyHasSpecialTokens = false) {
+            if (alreadyHasSpecialTokens) {
+                return base.GetSpecialTokensMask(tokenIds0, tokenIds1, true);
+            }
+
+            if (tokenIds1 == null) {
+                return ONE.Concat(new int[tokenIds0.Count]).Concat(ONE).ToList();
+            }
+
+            return ONE.Concat(new int[tokenIds0.Count]).Concat(ONE).Concat(ONE).Concat(new int[tokenIds1.Count]).Concat(ONE).ToList();
+        }
+
+        /// <summary>
+        /// Create a mask from the two sequences passed.
+        /// CLIP does not make use of token type ids,
+        /// therefore a list of zeros is returned.
+        /// </summary>
+        public override List<int> CreateTokenTypeIdsFromSequences(List<int> TokenIds0, List<int> TokenIds1 = null) {
+            int n;
+            if (TokenIds1 == null) {
+                // bos_token + token_ids_0 + eos_token
+                n = TokenIds0.Count + 2;
+            } else {
+                // (bos_token + token_ids_0 + eos_token + eos_token + token_ids_1 + eos_token
+                n = TokenIds0.Count + TokenIds1.Count + 4;
+            }
+            return Enumerable.Repeat(0, n).ToList();
         }
 
         private string bpe(string token) {
