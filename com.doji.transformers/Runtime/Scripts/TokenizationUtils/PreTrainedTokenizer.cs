@@ -20,6 +20,7 @@ namespace Doji.AI.Transformers {
     public class PreTrainedTokenizer : PreTrainedTokenizerBase {
 
         public bool? DoLowerCase { get; set; }
+        public override bool Fast { get => false; }
 
         private Trie _tokensTrie;
         private Dictionary<string, int> AddedTokensEncoder;

@@ -1,13 +1,15 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+/*
 using TextInput = System.String;
 using PreTokenizedInput = System.Collections.Generic.List<string>;
-using EncodedInput = System.Collections.Generic.List<string>;
+using EncodedInput = System.Collections.Generic.List<int>;
 using TextInputPair = System.Tuple<string, string>;
 using PreTokenizedInputPair = System.Tuple<System.Collections.Generic.List<string>, System.Collections.Generic.List<string>>;
 using EncodedInputPair = System.Tuple<System.Collections.Generic.List<int>, System.Collections.Generic.List<int>>;
-
+*/
 namespace Doji.AI.Transformers {
 
     public enum Padding {
@@ -85,6 +87,60 @@ namespace Doji.AI.Transformers {
         public HashSet<string> DeprecationWarnings { get; set; }
         public bool InTargetContextManager { get; set; }
 
+        public abstract bool Fast { get; }
+
+        public class EncodedInputs : IEnumerable<object> {
+            public List<int> InputIds;
+            public List<int> TokenTypeIds;
+            public List<object> AttentionMask;
+            public Dictionary<string, object> AdditionalInputs = new Dictionary<string, object>();
+            public int? NumTruncatedTokens;
+            public List<int> OverflowingTokens;
+            public List<int> SpecialTokensMask;
+
+            public object Length { get; internal set; }
+
+            public object this[string key] {
+                get {
+                    return key switch {
+                        "input_ids" => InputIds,
+                        "token_type_ids" => TokenTypeIds,
+                        "attention_mask" => AttentionMask,
+                        _ => AdditionalInputs[key],
+                    };
+                }
+                set {
+                    AdditionalInputs[key] = value;
+                }
+            }
+            public IEnumerable<string> Keys {
+                get { return AdditionalInputs.Keys; }
+            }
+
+            public bool ContainsKey(string key) {
+                return key switch {
+                    "input_ids" => InputIds != null,
+                    "token_type_ids" => TokenTypeIds != null,
+                    "attention_mask" => AttentionMask != null,
+                    _ => AdditionalInputs.ContainsKey(key),
+                };
+            }
+
+            IEnumerator IEnumerable.GetEnumerator() {
+                return GetEnumerator();
+            }
+
+            public IEnumerator<object> GetEnumerator() {
+                yield return InputIds;
+                yield return TokenTypeIds;
+                yield return AttentionMask;
+                yield return AdditionalInputs;
+                yield return NumTruncatedTokens;
+                yield return OverflowingTokens;
+                yield return SpecialTokensMask;
+            }
+        }
+
         protected virtual void Initialize(
             int modelMaxLength = int.MaxValue,
             Side paddingSide = Side.Right,
@@ -128,6 +184,16 @@ namespace Doji.AI.Transformers {
         /// case of a sequence pair or a single sequence.</param>
         protected virtual int NumSpecialTokensToAdd(bool pair = false) {
             throw new NotImplementedException($"This tokenizer does not implement {nameof(NumSpecialTokensToAdd)}");
+        }
+
+        /// <summary>
+        /// Find the correct padding/truncation strategy
+        /// </summary>
+        /// <remarks>
+        /// Tried to remove old/deprecated behavior from original code.
+        /// </remarks>
+        private void GetPaddingTruncationStrategies(ref Padding padding, ref Truncation truncation, ref int? maxLength) {
+            throw new NotImplementedException();
         }
 
         /// <summary>
@@ -190,6 +256,12 @@ namespace Doji.AI.Transformers {
             }
         }
 
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <remarks>
+        /// PretrainedTokenizerBase._call_one
+        /// </remarks>
         private BatchEncoding EncodePromptOne(
             string text,
             string textPair = null,
@@ -282,6 +354,163 @@ namespace Doji.AI.Transformers {
             } else {
                 return false;
             }
+        }
+
+        /// <summary>
+        /// Pad a single encoded input or a batch of encoded inputs up to a
+        /// predefined length or to the max sequence length in the batch.
+        /// Padding side (left/right) padding token ids are defined at the
+        /// tokenizer level(with `self.padding_side`, `self.pad_token_id`
+        /// and `self.pad_token_type_id`).
+        /// Please note that with a fast tokenizer, using the `__call__`
+        /// method is faster than using a method to encode the text
+        /// followed by a call to the `pad` method to get a padded encoding.
+        /// </summary>
+        public BatchEncoding Pad(
+            Dictionary<string, object> encodedInputs,
+            Padding padding = Padding.None,
+            int? maxLength = null,
+            int? padToMultipleOf = null,
+            bool? returnAttentionMask = null,
+            string returnTensors = null)
+        {
+            if (Fast) {
+                string warningKey = "Asking-to-pad-a-fast-tokenizer";
+                if (!DeprecationWarnings.Contains(warningKey)) {
+                    Console.WriteLine($"You're using a {GetType()}. Please note that with a fast tokenizer, " +
+                    " using the `__call__` method is faster than using a method to encode the text followed by a call " +
+                    " to the `pad` method to get a padded encoding.");
+                }
+
+                DeprecationWarnings.Add(warningKey);
+            }
+
+            // The model's main input name, usually `input_ids`, has be passed for padding
+            if (!encodedInputs.ContainsKey(ModelInputNames[0])) {
+                throw new ArgumentException($"You should supply an encoding or a list of encodings to this method that includes" +
+                    $"{ModelInputNames[0]}, but you provided {string.Join(", ", encodedInputs.Keys)}");
+            }
+
+            IList requiredInput = encodedInputs[ModelInputNames[0]] as IList;
+
+            if (requiredInput == null || (requiredInput is ICollection collection && collection.Count == 0)) {
+                if (returnAttentionMask == true) {
+                    encodedInputs["attention_mask"] = new List<object>();
+                }
+
+                return new BatchEncoding(encodedInputs);
+            }
+
+            if (requiredInput != null && (requiredInput)[0] is not ICollection) {
+                encodedInputs = _Pad(
+                    encodedInputs,
+                    maxLength,
+                    padding,
+                    padToMultipleOf,
+                    returnAttentionMask
+                );
+
+                return new BatchEncoding(encodedInputs);
+            }
+
+            int batchSize = requiredInput.Count;
+            if (!encodedInputs.Values.All(v => (v as ICollection<object>)?.Count == batchSize)) {
+                throw new InvalidOperationException("Some items in the output dictionary have a different batch size than others.");
+            }
+
+            if (padding == Padding.Longest) {
+                maxLength = (requiredInput as List<object>).Max(inputs => (inputs as ICollection<object>)?.Count ?? 0);
+                padding = Padding.MaxLength;
+            }
+
+            var batchOutputs = new Dictionary<string, object>();
+            for (int i = 0; i < batchSize; i++) {
+                var inputs = encodedInputs.ToDictionary(kvp => kvp.Key, kvp => ((IList<object>)kvp.Value)[i]);
+                var outputs = _Pad(
+                    inputs,
+                    maxLength,
+                    padding,
+                    padToMultipleOf,
+                    returnAttentionMask
+                );
+
+                foreach (var keyValuePair in outputs) {
+                    if (batchOutputs.TryGetValue(keyValuePair.Key, out var output)) {
+                        (output as List<object>).Add(keyValuePair.Value);
+                    } else {
+                        batchOutputs[keyValuePair.Key] = new List<object>() { keyValuePair.Value };
+                    }
+                }
+            }
+
+            return new BatchEncoding(batchOutputs);
+        }
+
+        private Dictionary<string, object> _Pad(
+            Dictionary<string, object> encodedInputs,
+            int? maxLength,
+            Padding padding,
+            int? padToMultipleOf,
+            bool? returnAttentionMask)
+        {
+            if (returnAttentionMask == null) {
+                returnAttentionMask = encodedInputs.ContainsKey("attention_mask");
+            }
+
+            List<int> requiredInput = encodedInputs[ModelInputNames[0]] as List<int>;
+
+            if (padding == Padding.Longest) {
+                maxLength = requiredInput.Count;
+            }
+
+            if (maxLength != null && padToMultipleOf != null && (maxLength % padToMultipleOf != 0)) {
+                maxLength = ((maxLength.Value / padToMultipleOf.Value) + 1) * padToMultipleOf.Value;
+            }
+
+            bool needsToBePadded = padding!= Padding.None && requiredInput.Count != maxLength;
+
+            // Initialize attention mask if not present.
+            if (returnAttentionMask == true && !encodedInputs.ContainsKey("attention_mask")) {
+                encodedInputs["attention_mask"] = Enumerable.Repeat(1, requiredInput.Count).ToList();
+            }
+
+            if (needsToBePadded) {
+                int difference = maxLength.Value - requiredInput.Count;
+
+                if (PaddingSide == Side.Right) {
+                    if (returnAttentionMask == true) {
+                        var atnMasks = (List<int>)encodedInputs["attention_mask"];
+                        encodedInputs["attention_mask"] = atnMasks.Concat(Enumerable.Repeat(0, difference)).ToList();
+                    }
+                    if (encodedInputs.ContainsKey("token_type_ids")) {
+                        var ids = (List<int>)encodedInputs["token_type_ids"];
+                        encodedInputs["token_type_ids"] = ids.Concat(Enumerable.Repeat(PadTokenTypeID, difference)).ToList();
+                    }
+                    if (encodedInputs.ContainsKey("special_tokens_mask")) {
+                        var special = (List<int>)encodedInputs["special_tokens_mask"];
+                        encodedInputs["special_tokens_mask"] = special.Concat(Enumerable.Repeat(1, difference)).ToList();
+                    }
+                    encodedInputs[ModelInputNames[0]] = requiredInput.Concat(Enumerable.Repeat(PadTokenId.Value, difference)).ToList();
+                } else if (PaddingSide == Side.Left) {
+                    if (returnAttentionMask == true) {
+                        var atnMasks = (List<int>)encodedInputs["attention_mask"];
+                        encodedInputs["attention_mask"] = Enumerable.Repeat(0, difference).Concat(atnMasks).ToList();
+                    }
+                    if (encodedInputs.ContainsKey("token_type_ids")) {
+                        var ids = (List<int>)encodedInputs["token_type_ids"];
+                        encodedInputs["token_type_ids"] = Enumerable.Repeat(PadTokenTypeID, difference).Concat(ids).ToList();
+                    }
+                    if (encodedInputs.ContainsKey("special_tokens_mask")) {
+                        var special = (List<int>)encodedInputs["special_tokens_mask"];
+                        encodedInputs["special_tokens_mask"] = Enumerable.Repeat(1, difference).Concat(special).ToList();
+                    }
+                    encodedInputs[ModelInputNames[0]] = Enumerable.Repeat(PadTokenId.Value, difference).Concat(requiredInput).ToList();
+                } else {
+                    throw new ArgumentException("Invalid padding strategy: " + PaddingSide);
+                }
+            }
+
+            return encodedInputs;
         }
 
         /// <summary>
@@ -386,7 +615,7 @@ namespace Doji.AI.Transformers {
                 returnAttentionMask = ModelInputNames.Contains("attention_mask");
             }
 
-            Dictionary<string, object> encodedInputs = new Dictionary<string, object>();
+            var encodedInputs = new Dictionary<string, object>();
 
             // Compute the total size of the returned encodings
             int totalLen = lenIds + lenPairIds + (addSpecialTokens ? NumSpecialTokensToAdd(pair) : 0);
@@ -440,28 +669,27 @@ namespace Doji.AI.Transformers {
             }
 
             // Check lengths
-            /*EventualWarnAboutTooLongSequence(encodedInputs["input_ids"], maxLength, verbose);
+            EventualWarnAboutTooLongSequence(encodedInputs["input_ids"] as List<int>, maxLength, verbose);
 
             // Padding
             if (padding != Padding.None || returnAttentionMask == true) {
-                encoded_inputs = pad(
-                    encoded_inputs,
-                    max_length = max_length,
-                    padding = padding_strategy.value,
-                    pad_to_multiple_of = pad_to_multiple_of,
-                    return_attention_mask = return_attention_mask,
-
+                encodedInputs = Pad(
+                    encodedInputs,
+                    maxLength:maxLength,
+                    padding:padding,
+                    padToMultipleOf: padToMultipleOf,
+                    returnAttentionMask: returnAttentionMask
                 );
             }
 
             if (returnLength) {
-                encodedInputs["length"] = len(encodedInputs["input_ids"]);
+                encodedInputs["length"] = (encodedInputs["input_ids"] as ICollection).Count;
             }
 
-            batchOutputs = BatchEncoding(
-                encoded_inputs, tensor_type = return_tensors, prepend_batch_axis = prepend_batch_axis
-            )*/
-            return null;
+            BatchEncoding batchOutputs = new BatchEncoding(
+                encodedInputs, prependBatchAxis: prependBatchAxis
+            );
+            return batchOutputs;
         }
 
         public Tuple<List<int>, List<int>, List<int>> TruncateSequences(
