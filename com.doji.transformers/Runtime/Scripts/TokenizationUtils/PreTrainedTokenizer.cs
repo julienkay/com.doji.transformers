@@ -357,9 +357,8 @@ namespace Doji.AI.Transformers {
         /// <summary>
         /// Converts a token string into a single integer id using the vocabulary.
         /// </summary>
-        private int ConvertTokensToIds(string tokens) {
+        protected override int ConvertTokensToIds(string tokens) {
             if (tokens == null) {
-                //TODO: check if this makes sense
                 return -1;
             }
 

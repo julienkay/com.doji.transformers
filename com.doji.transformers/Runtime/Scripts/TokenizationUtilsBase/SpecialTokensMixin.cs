@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Linq;
 
@@ -15,23 +16,85 @@ namespace Doji.AI.Transformers {
         public Token MaskToken { get; set; }
         public List<Token> AdditionalSpecialTokens { get; set; }
 
-        public int? BosTokenId => throw new System.NotImplementedException();
+        public int? BosTokenId {
+            get {
+                if (BosToken == null) return null;
+                return ConvertTokensToIds(BosToken);
+            }
+            set {
+                throw new NotImplementedException();
+            }
+        }
 
-        public int? EosTokenId => throw new System.NotImplementedException();
+        public int? EosTokenId {
+            get {
+                if (EosToken == null)
+                    return null;
+                return ConvertTokensToIds(EosToken);
+            }
+            set {
+                throw new NotImplementedException();
+            }
+        }
 
-        public int? UnkTokenId => throw new System.NotImplementedException();
+        public int? UnkTokenId {
+            get {
+                if (UnkToken == null)
+                    return null;
+                return ConvertTokensToIds(UnkToken);
+            }
+            set {
+                throw new NotImplementedException();
+            }
+        }
 
-        public int? SepTokenId => throw new System.NotImplementedException();
+        public int? SepTokenId {
+            get {
+                if (SepToken == null)
+                    return null;
+                return ConvertTokensToIds(SepToken);
+            }
+            set {
+                throw new NotImplementedException();
+            }
+        }
 
-        public int? PadTokenId => throw new System.NotImplementedException();
+        public int? PadTokenId {
+            get {
+                if (PadToken == null)
+                    return null;
+                return ConvertTokensToIds(PadToken);
+            }
+            set {
+                throw new NotImplementedException();
+            }
+        }
 
         public int PadTokenTypeID { get; private set; }
 
-        public int? ClsTokenId => throw new System.NotImplementedException();
+        public int? ClsTokenId {
+            get {
+                if (ClsToken == null)
+                    return null;
+                return ConvertTokensToIds(ClsToken);
+            }
+            set {
+                throw new NotImplementedException();
+            }
+        }
 
-        public int? MaskTokenId => throw new System.NotImplementedException();
+        public int? MaskTokenId {
+            get {
+                if (MaskToken == null)
+                    return null;
+                return ConvertTokensToIds(MaskToken);
+            }
+            set {
+                throw new NotImplementedException();
+            }
+        }
 
-        public List<int> AdditionalSpecialTokensIds { get => throw new System.NotImplementedException(); set => throw new System.NotImplementedException(); }
+        public List<int> AdditionalSpecialTokensIds { get => throw new NotImplementedException(); set => throw new NotImplementedException(); }
 
         /// <summary>
         /// A list of the unique special tokens (`'<unk>'`, `'<cls>'`, ..., etc.).
@@ -57,6 +120,7 @@ namespace Doji.AI.Transformers {
         }
 
         protected abstract List<int> ConvertTokensToIds(List<string> tokens);
+        protected abstract int ConvertTokensToIds(string tokens);
 
         public int AddSpecialTokens(Dictionary<string, AddedToken> specialTokensDict, bool replaceAdditionalSpecialTokens = true) {
             throw new System.NotImplementedException();
