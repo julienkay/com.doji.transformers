@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text.RegularExpressions;
-using Unity.Sentis.Layers;
 
 namespace Doji.AI.Transformers {
 
@@ -55,7 +54,7 @@ namespace Doji.AI.Transformers {
                     AddedTokensDecoder[token.Key] = token.Value;
                 }
             }
-            AddedTokensEncoder = addedTokensDecoder.ToDictionary(x => (string)x.Value, x => x.Key);
+            AddedTokensEncoder = AddedTokensDecoder.ToDictionary(x => (string)x.Value, x => x.Key);
 
             // 4 init the parent class
             base.Initialize(
