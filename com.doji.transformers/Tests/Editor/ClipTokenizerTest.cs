@@ -15,8 +15,22 @@ namespace Doji.AI.Transformers.Editor.Tests {
             CollectionAssert.AreEqual(tokens, exptected);
         }
 
+        [Test]
+        public void TestEncode() {
+            ClipTokenizer t = CreateTokenizer();
+            var encoding = t.EncodePrompt("lower newer");
+
+            Assert.IsTrue(encoding.ContainsKey("input_ids"), "Encoded ids not found in 'input_ids'.");
+
+            object encodedIds = encoding["input_ids"];
+            Assert.IsTrue(encodedIds is ICollection, "Unexpected type for encoded text.");
+
+            List<int> exptected = new List<int>() { 21, 10, 2, 16, 9, 3, 2, 16, 22 };
+            CollectionAssert.AreEqual(encodedIds as ICollection, exptected);
+        }
+
         private ClipTokenizer CreateTokenizer() {
-            string[] vocabList = { "l", "o", "w", "e", "r", "s", "t", "i", "d", "n", "lo", "l</w>", "w</w>", "r</w>", "t</w>", "low</w>", "er</w>", "lowest</w>", "newer</w>", "wider", "<unk>", "", "" };
+            string[] vocabList = { "l", "o", "w", "e", "r", "s", "t", "i", "d", "n", "lo", "l</w>", "w</w>", "r</w>", "t</w>", "low</w>", "er</w>", "lowest</w>", "newer</w>", "wider", "<unk>", "<|startoftext|>", "<|endoftext|>" };
             string[] mergesFile = { "#version: 0.2", "l o", "lo w</w>", "e r</w>" };
             Dictionary<string, int> vocabTokens = new Dictionary<string, int>();
             for (int i = 0; i < vocabList.Length; i++) {
