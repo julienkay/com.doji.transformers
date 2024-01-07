@@ -18,7 +18,7 @@ namespace Doji.AI.Transformers.Editor.Tests {
         [Test]
         public void TestEncode() {
             ClipTokenizer t = CreateTokenizer();
-            var encoding = t.EncodePrompt("lower newer");
+            var encoding = t.Encode("lower newer");
 
             Assert.IsTrue(encoding.ContainsKey("input_ids"), "Encoded ids not found in 'input_ids'.");
 

@@ -143,7 +143,7 @@ namespace Doji.AI.Transformers {
         /// <remarks>
         /// PreTrainedTokenizerBase.__call__
         /// </remarks>
-        public BatchEncoding EncodePrompt(
+        public BatchEncoding Encode(
             string text = null,
             string textPair = null,
             string textTarget = null,
