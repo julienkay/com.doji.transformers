@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
+using UnityEngine.TextCore.Text;
 
 namespace Doji.AI.Transformers {
 
@@ -158,20 +159,23 @@ namespace Doji.AI.Transformers {
 
         /// <summary>
         /// Returns list of utf-8 byte and a mapping to unicode strings.
-        /// We specifically avoids mapping to whitespace/control
+        /// We specifically avoid mapping to whitespace/control
         /// characters the bpe code barfs on.
         /// 
-        /// The reversible bpe codes work on unicode strings.  This means you need a large # of unicode characters in your vocab
-        /// if you want to avoid UNKs.When you're at something like a 10B token dataset you end up needing around 5K for
-        /// decent coverage. This is a significant percentage of your normal, say, 32K bpe vocab.To avoid that, we want lookup
+        /// The reversible bpe codes work on unicode strings.
+        /// This means you need a large # of unicode characters in your
+        /// vocab if you want to avoid UNKs. When you're at something
+        /// like a 10B token dataset you end up needing around 5K for
+        /// decent coverage. This is a significant percentage of your
+        /// normal, say, 32K bpe vocab.To avoid that, we want lookup
         /// tables between utf-8 bytes and unicode strings.
         /// 
         /// TODO: Look into C# equivalent for @lru_cache()
         /// </summary>
         private static Dictionary<int, char> BytesToUnicode() {
-            List<int> bs = Enumerable.Range('!', '~' + 1)
-                .Concat(Enumerable.Range('¡', '¬' + 1))
-                .Concat(Enumerable.Range('®', 'ÿ' + 1))
+            List<int> bs = GetRange('!', '~' + 1)
+                .Concat(GetRange('¡', '¬' + 1))
+                .Concat(GetRange('®', 'ÿ' + 1))
                 .ToList();
 
             List<int> cs = new List<int>(bs);
@@ -191,6 +195,10 @@ namespace Doji.AI.Transformers {
             }
 
             return result;
+        }
+
+        private static IEnumerable<int> GetRange(int start, int end) {
+            return Enumerable.Range(start, end - start);
         }
 
         /// <summary>
