@@ -2,15 +2,17 @@
 using NUnit.Framework;
 using System.Collections.Generic;
 
-public class BytesToUnicodeTest {
+namespace Doji.AI.Transformers.Editor.Tests {
 
-    [Test]
-    public void TestBytesToUnicode() {
-        Dictionary<int, char> bytestoUnicode = ClipTokenizer.BytesToUnicode();
+    public class BytesToUnicodeTest {
 
-        // might as well use this precomputed dictionary in the actual code?
-        Dictionary<int, char> expected = new Dictionary<int, char>
-        {
+        [Test]
+        public void TestBytesToUnicode() {
+            Dictionary<int, char> bytestoUnicode = ClipTokenizer.BytesToUnicode();
+
+            // might as well use this precomputed dictionary in the actual code?
+            Dictionary<int, char> expected = new Dictionary<int, char>
+            {
             { 33, '!'},
             { 34, '"'},
             { 35, '#'},
@@ -269,6 +271,7 @@ public class BytesToUnicodeTest {
             {173, 'Ń'}
         };
 
-        CollectionAssert.AreEquivalent(bytestoUnicode, expected);
+            CollectionAssert.AreEquivalent(bytestoUnicode, expected);
+        }
     }
 }
