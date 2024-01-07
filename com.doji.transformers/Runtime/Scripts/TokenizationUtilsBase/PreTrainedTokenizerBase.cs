@@ -2,14 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-/*
-using TextInput = System.String;
-using PreTokenizedInput = System.Collections.Generic.List<string>;
-using EncodedInput = System.Collections.Generic.List<int>;
-using TextInputPair = System.Tuple<string, string>;
-using PreTokenizedInputPair = System.Tuple<System.Collections.Generic.List<string>, System.Collections.Generic.List<string>>;
-using EncodedInputPair = System.Tuple<System.Collections.Generic.List<int>, System.Collections.Generic.List<int>>;
-*/
+
 namespace Doji.AI.Transformers {
 
     public enum Padding {
@@ -88,58 +81,6 @@ namespace Doji.AI.Transformers {
         public bool InTargetContextManager { get; set; }
 
         public abstract bool Fast { get; }
-
-        public class EncodedInputs : IEnumerable<object> {
-            public List<int> InputIds;
-            public List<int> TokenTypeIds;
-            public List<object> AttentionMask;
-            public Dictionary<string, object> AdditionalInputs = new Dictionary<string, object>();
-            public int? NumTruncatedTokens;
-            public List<int> OverflowingTokens;
-            public List<int> SpecialTokensMask;
-
-            public object Length { get; internal set; }
-
-            public object this[string key] {
-                get {
-                    return key switch {
-                        "input_ids" => InputIds,
-                        "token_type_ids" => TokenTypeIds,
-                        "attention_mask" => AttentionMask,
-                        _ => AdditionalInputs[key],
-                    };
-                }
-                set {
-                    AdditionalInputs[key] = value;
-                }
-            }
-            public IEnumerable<string> Keys {
-                get { return AdditionalInputs.Keys; }
-            }
-
-            public bool ContainsKey(string key) {
-                return key switch {
-                    "input_ids" => InputIds != null,
-                    "token_type_ids" => TokenTypeIds != null,
-                    "attention_mask" => AttentionMask != null,
-                    _ => AdditionalInputs.ContainsKey(key),
-                };
-            }
-
-            IEnumerator IEnumerable.GetEnumerator() {
-                return GetEnumerator();
-            }
-
-            public IEnumerator<object> GetEnumerator() {
-                yield return InputIds;
-                yield return TokenTypeIds;
-                yield return AttentionMask;
-                yield return AdditionalInputs;
-                yield return NumTruncatedTokens;
-                yield return OverflowingTokens;
-                yield return SpecialTokensMask;
-            }
-        }
 
         protected virtual void Initialize(
             int modelMaxLength = int.MaxValue,

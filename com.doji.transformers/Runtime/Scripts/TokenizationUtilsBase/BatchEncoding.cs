@@ -1,4 +1,3 @@
-using System;
 using System.Collections.Generic;
 
 namespace Doji.AI.Transformers {
@@ -13,13 +12,17 @@ namespace Doji.AI.Transformers {
     /// </summary>
     public class BatchEncoding : Dictionary<string, object> {
 
+        public bool PrependBatchAxis { get; set;}
+        public int? NSequences { get; set; }
+
         public BatchEncoding(
             Dictionary<string, object> data = null,
             object encoding = null, // dummy, EmcodingFast implemented in the `tokenizers` library.
             bool prependBatchAxis = false,
             int? nSequences = null) : base(data)
         {
-        
+            PrependBatchAxis = prependBatchAxis;
+            NSequences = nSequences;
         }
 
         /*public static implicit operator BatchEncoding(Dictionary<string, object> data) {
