@@ -172,10 +172,10 @@ namespace Doji.AI.Transformers {
         /// 
         /// TODO: Look into C# equivalent for @lru_cache()
         /// </summary>
-        private static Dictionary<int, char> BytesToUnicode() {
-            List<int> bs = GetRange('!', '~' + 1)
-                .Concat(GetRange('¡', '¬' + 1))
-                .Concat(GetRange('®', 'ÿ' + 1))
+        internal static Dictionary<int, char> BytesToUnicode() {
+            List<int> bs = GetRange('!', '~' + 1) //!:35, ~:126
+                .Concat(GetRange('¡', '¬' + 1)) // ¡:161, ¬:172
+                .Concat(GetRange('®', 'ÿ' + 1)) // ®:174, ÿ:255
                 .ToList();
 
             List<int> cs = new List<int>(bs);
