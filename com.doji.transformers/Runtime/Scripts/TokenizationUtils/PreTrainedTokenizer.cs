@@ -218,7 +218,7 @@ namespace Doji.AI.Transformers {
         /// Split in words for word-based vocabulary or sub-words for sub-word-based vocabularies
         /// (BPE/SentencePieces/WordPieces). Takes care of added tokens.
         /// </summary>
-        protected override List<string> Tokenize(string text, string textPair = null) {
+        public override List<string> Tokenize(string text, string textPair = null) {
             bool splitSpecialTokens = SplitSpecialTokens;
 
             if (DoLowerCase == true) {
