@@ -46,7 +46,7 @@ namespace Doji.AI.Transformers {
             bool doSPlitOnPunc = true
         ) {
             _doLowerCase = doLowerCase;
-            _neverSplit = neverSplit;
+            _neverSplit = neverSplit ?? new List<string>();
             _tokenizeChineseChars = tokenizeChineseChars;
             _stripAccents = stripAccents;
             _doSplitOnPunc = doSPlitOnPunc;
