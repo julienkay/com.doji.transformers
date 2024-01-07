@@ -62,10 +62,10 @@ namespace Doji.AI.Transformers {
                 vocab,
                 merges,
                 errors,
-                unkToken,
-                bosToken,
-                eosToken,
-                padToken
+                unkToken: unkToken,
+                bosToken: bosToken,
+                eosToken: eosToken,
+                padToken: padToken
             );
         }
 
@@ -127,10 +127,10 @@ namespace Doji.AI.Transformers {
                 modelInputNames,
                 cleanUpTokenizationSpaces,
                 splitSpecialTokens,
-                unkToken,
-                bosToken,
-                eosToken,
-                padToken
+                unkToken: unkToken,
+                bosToken: bosToken,
+                eosToken: eosToken,
+                padToken: padToken
             );
         }
 

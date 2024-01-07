@@ -138,38 +138,51 @@ namespace Doji.AI.Transformers {
             throw new System.NotImplementedException();
         }
 
-        Dictionary<string, AddedToken> ISpecialTokensMixin.SpecialTokensMap => throw new System.NotImplementedException();
+        HashSet<AddedToken> ISpecialTokensMixin.SpecialTokensMap => throw new NotImplementedException();
 
-        public Dictionary<string, Token> SpecialTokensMapExtended {
+        /// <summary>
+        /// A map containing special tokens (`cls_token`, `unk_token`, etc.)
+        /// </summary>
+        public HashSet<Token> SpecialTokensMapExtended {
             get {
-                return new Dictionary<string, Token> {
-                    { "bos_token" , BosToken  },
-                    { "eos_token" , EosToken  },
-                    { "unk_token" , UnkToken  },
-                    { "sep_token" , SepToken  },
-                    { "pad_token" , PadToken  },
-                    { "cls_token" , ClsToken  },
-                    { "mask_token", MaskToken },
-                };
+                var tokens = new HashSet<Token>(
+                    new Token[] {
+                        BosToken,
+                        EosToken,
+                        UnkToken,
+                        SepToken,
+                        PadToken,
+                        ClsToken,
+                        MaskToken,
+                    }.Where(value => value != null)
+                );
+                return tokens;
             }
         }
 
+        /// <summary>
+        /// All the special tokens (`'<unk>'`, `'<cls>'`, etc.), the order has nothing to do
+        /// with the index of each tokens. If you want to know the correct indices, check
+        /// <see cref="PreTrainedTokenizer.AddedTokensEncoder"/>.
+        /// 
+        /// Don't convert tokens of `tokenizers.AddedToken` type to string so they can be used
+        /// to control more finely how special tokens are tokenized.
+        /// </summary>
         public List<Token> AllSpecialTokensExtended {
             get {
                 List<Token> allTokens = new List<Token>();
-                HashSet<string> seen = new HashSet<string>();
+                HashSet<Token> seen = new HashSet<Token>();
 
-                foreach (var value in SpecialTokensMapExtended.Values) {
-                    var tokenToAdd = value.ToString();
-                    if (!seen.Contains(tokenToAdd)) {
-                        allTokens.Add(value);
-                        seen.Add(tokenToAdd);
+                foreach (Token token in SpecialTokensMapExtended) {
+                    if (!seen.Contains(token)) {
+                        allTokens.Add(token);
+                        seen.Add(token);
                     }
                 }
 
                 var tokensToAdd = AdditionalSpecialTokens.Where(token => !seen.Contains(token));
                 allTokens.AddRange(tokensToAdd);
-                seen.UnionWith(tokensToAdd.Select(token => token.ToString()));
+                seen.UnionWith(tokensToAdd);
 
                 return allTokens;
             }

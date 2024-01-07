@@ -44,9 +44,7 @@ namespace Doji.AI.Transformers {
             _tokensTrie = new Trie();
 
             // init `AddedTokensDecoder` if child class did not
-            if (AddedTokensDecoder == null) {
-                AddedTokensDecoder = new Dictionary<int, AddedToken>();
-            }
+            AddedTokensDecoder ??= new Dictionary<int, AddedToken>();
 
             // if a `added_tokens_decoder` is passed, we are loading from a saved tokenizer, we overwrite 
             if (addedTokensDecoder != null) {
@@ -64,13 +62,13 @@ namespace Doji.AI.Transformers {
                 modelInputNames,
                 cleanUpTokenizationSpaces,
                 splitSpecialTokens,
-                bosToken,
-                eosToken,
-                unkToken,
-                sepToken,
-                padToken,
-                clsToken,
-                maskToken
+                bosToken: bosToken,
+                eosToken: eosToken,
+                unkToken: unkToken,
+                sepToken: sepToken,
+                padToken: padToken,
+                clsToken: clsToken,
+                maskToken: maskToken
             );
 
             // 4. If some of the special tokens are not part of the vocab, we add them, at the end.

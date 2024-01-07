@@ -33,9 +33,9 @@ namespace Doji.AI.Transformers {
 
         public List<int> AdditionalSpecialTokensIds { get; set; }
 
-        public Dictionary<string, AddedToken> SpecialTokensMap { get; }
+        public HashSet<AddedToken> SpecialTokensMap { get; }
 
-        public Dictionary<string, Token> SpecialTokensMapExtended { get; }
+        public HashSet<Token> SpecialTokensMapExtended { get; }
         public List<Token> AllSpecialTokensExtended { get; }
 
         public List<string> AllSpecialTokens { get; }

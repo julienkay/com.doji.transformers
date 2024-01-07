@@ -108,13 +108,13 @@ namespace Doji.AI.Transformers {
             InTargetContextManager = false;
 
             InitializeSpecialTokensMixin(
-                bosToken,
-                eosToken,
-                unkToken,
-                sepToken,
-                padToken,
-                clsToken,
-                maskToken
+                bosToken: bosToken,
+                eosToken: eosToken,
+                unkToken: unkToken,
+                sepToken: sepToken,
+                padToken: padToken,
+                clsToken: clsToken,
+                maskToken: maskToken
             );
         }
 
