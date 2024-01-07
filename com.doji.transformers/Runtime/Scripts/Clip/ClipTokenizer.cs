@@ -339,5 +339,17 @@ namespace Doji.AI.Transformers {
 
             return bpeTokens;
         }
+
+        /// <summary>
+        /// Converts a token into an id using the vocab.
+        /// </summary>
+        protected override int ConvertTokenToId(string token) {
+            var encoder = Vocab.Encoder;
+            if (encoder.TryGetValue(token, out int id)) {
+                return id;
+            } else {
+                return encoder.GetValueOrDefault(UnkToken);
+            }
+        }
     }
 }
