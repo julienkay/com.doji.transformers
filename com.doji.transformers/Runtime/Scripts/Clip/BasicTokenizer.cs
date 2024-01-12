@@ -43,13 +43,13 @@ namespace Doji.AI.Transformers {
             List<string> neverSplit = null,
             bool tokenizeChineseChars = false,
             bool? stripAccents = null,
-            bool doSPlitOnPunc = true
+            bool doSplitOnPunc = true
         ) {
             _doLowerCase = doLowerCase;
             _neverSplit = neverSplit ?? new List<string>();
             _tokenizeChineseChars = tokenizeChineseChars;
             _stripAccents = stripAccents;
-            _doSplitOnPunc = doSPlitOnPunc;
+            _doSplitOnPunc = doSplitOnPunc;
         }
 
         public List<string> Tokenize(string text) {
