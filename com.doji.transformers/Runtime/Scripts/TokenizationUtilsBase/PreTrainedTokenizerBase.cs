@@ -163,6 +163,13 @@ namespace Doji.AI.Transformers {
             bool returnLength = false,
             bool verbose = true)
         {
+            EncodingParams args = new EncodingParams(
+                text, textPair, textTarget, textPairTarget, addSpecialTokens, padding,
+                truncation, maxLength, stride, isSplitIntoWords, padToMultipleOf,
+                returnTokenTypeIds, returnAttentionMask, returnOverflowingTokens,
+                returnSpecialTokensMask, returnOffsetsMapping, returnLength, verbose
+            );
+
             if (text == null && textTarget == null) {
                 throw new ArgumentException("You need to specify either `text` or `textTarget`.");
             }
@@ -176,12 +183,12 @@ namespace Doji.AI.Transformers {
                 if (!InTargetContextManager) {
                     SwitchToInputMode();
                 }
-                encodings = EncodePromptOne(text, textPair);
+                encodings = EncodePromptOne(args);
             }
 
             if (textTarget != null) {
                 SwitchToTargetMode();
-                targetEncodings = EncodePromptOne(textTarget, textPairTarget);
+                targetEncodings = EncodePromptOne(args);
             }
 
             // Leave back tokenizer in input mode
@@ -203,59 +210,22 @@ namespace Doji.AI.Transformers {
         /// <remarks>
         /// PretrainedTokenizerBase._call_one
         /// </remarks>
-        private BatchEncoding EncodePromptOne(
-            string text,
-            string textPair = null,
-            bool addSpecialTokens = true,
-            Padding padding = Padding.None,
-            Truncation truncation = Truncation.None,
-            int? maxLength = null,
-            int stride = 0,
-            bool isSplitIntoWords = false,
-            int? padToMultipleOf = null,
-            bool? returnTokenTypeIds = null,
-            bool? returnAttentionMask = null,
-            bool returnOverflowingTokens = false,
-            bool returnSpecialTokensMask = false,
-            bool returnOffsetsMapping = false,
-            bool returnLength = false,
-            bool verbose = true)
-        {
-            if (!IsValidTextInput(text)) {
+        private BatchEncoding EncodePromptOne(EncodingParams args) {
+            if (!IsValidTextInput(args.Text)) {
                 throw new ArgumentException("text input must be of type `str` (single example), `List[str]` (batch or single pretokenized example) " +
                                             "or `List<List[str]]` (batch of pretokenized examples).");
             }
 
-            if (textPair != null && !IsValidTextInput(textPair)) {
+            if (args.TextPair != null && !IsValidTextInput(args.TextPair)) {
                 throw new ArgumentException("text input must be of type `str` (single example), `List[str]` (batch or single pretokenized example) " +
                                             "or `List<List[str]]` (batch of pretokenized examples).");
             }
 
             // only non-batched version implemented for now
-            return EncodePlus(text, textPair, addSpecialTokens, padding, truncation, maxLength, stride,
-                        isSplitIntoWords, padToMultipleOf, returnTokenTypeIds,
-                        returnAttentionMask, returnOverflowingTokens, returnSpecialTokensMask,
-                        returnOffsetsMapping, returnLength, verbose);
+            return EncodePlus(args);
         }
 
-        protected virtual BatchEncoding EncodePlus(
-            string text,
-            string textPair = null,
-            bool addSpecialTokens = true,
-            Padding padding = Padding.None,
-            Truncation truncation = Truncation.None,
-            int? maxLength = null,
-            int stride = 0,
-            bool isSplitIntoWords = false,
-            int? padToMultipleOf = null,
-            bool? returnTokenTypeIds = null,
-            bool? returnAttentionMask = null,
-            bool returnOverflowingTokens = false,
-            bool returnSpecialTokensMask = false,
-            bool returnOffsetsMapping = false,
-            bool returnLength = false,
-            bool verbose = true)
-        {
+        protected virtual BatchEncoding EncodePlus(EncodingParams args) {
             throw new NotImplementedException($"This tokenizer does not implement {nameof(EncodePlus)}");
         }
 
@@ -507,29 +477,18 @@ namespace Doji.AI.Transformers {
         /// overflowing tokens. Such a combination of arguments will raise an error.
         /// </remarks>
         protected BatchEncoding PrepareForModel(
+            EncodingParams args,
             List<int> ids,
             List<int> pairIds = null,
-            bool addSpecialTokens = true,
-            Padding padding = Padding.None,
-            Truncation truncation = Truncation.None,
-            int? maxLength = null,
-            int stride = 0,
-            bool isSplitIntoWords = false,
-            int? padToMultipleOf = null,
-            bool? returnTokenTypeIds = null,
-            bool? returnAttentionMask = null,
-            bool returnOverflowingTokens = false,
-            bool returnSpecialTokensMask = false,
-            bool returnOffsetsMapping = false,
-            bool returnLength = false,
-            bool verbose = true,
             bool prependBatchAxis = false)
         {
             bool pair = pairIds != null;
             int lenIds = ids.Count;
             int lenPairIds = pair ? pairIds.Count : 0;
+            bool? returnTokenTypeIds = args.ReturnTokenTypeIds;
+            bool? returnAttentionMask = args.ReturnAttentionMask;
 
-            if (returnTokenTypeIds == true && !addSpecialTokens) {
+            if (args.ReturnTokenTypeIds == true && !args.AddSpecialTokens) {
                 throw new ArgumentException(
                     "Asking to return token_type_ids while setting add_special_tokens to False " +
                     "results in an undefined behavior. Please set add_special_tokens to True or " +
@@ -537,8 +496,8 @@ namespace Doji.AI.Transformers {
                 );
             }
 
-            if (returnOverflowingTokens
-                && truncation == Truncation.LongestFirst
+            if (args.ReturnOverflowingTokens
+                && args.Truncation == Truncation.LongestFirst
                 && pairIds != null) {
                 throw new ArgumentException(
                     "Not possible to return overflowing tokens for a pair of sequences with the " +
@@ -559,17 +518,17 @@ namespace Doji.AI.Transformers {
             var encodedInputs = new Dictionary<string, object>();
 
             // Compute the total size of the returned encodings
-            int totalLen = lenIds + lenPairIds + (addSpecialTokens ? NumSpecialTokensToAdd(pair) : 0);
+            int totalLen = lenIds + lenPairIds + (args.AddSpecialTokens ? NumSpecialTokensToAdd(pair) : 0);
 
             // Truncation: Handle max sequence length
             List<int> overflowingTokens = null;
-            if (truncation != Truncation.None && maxLength > 0 && totalLen > maxLength) {
+            if (args.Truncation != Truncation.None && args.MaxLength > 0 && totalLen > args.MaxLength) {
                 Tuple<List<int>, List<int>, List<int>> truncationResult = TruncateSequences(
                     ids,
                     pairIds,
-                    totalLen - maxLength.Value,
-                    truncation,
-                    stride
+                    totalLen - args.MaxLength.Value,
+                    args.Truncation,
+                    args.Stride
                 );
 
                 ids = truncationResult.Item1;
@@ -577,15 +536,15 @@ namespace Doji.AI.Transformers {
                 overflowingTokens = truncationResult.Item3;
             }
 
-            if (returnOverflowingTokens) {
+            if (args.ReturnOverflowingTokens) {
                 encodedInputs["overflowing_tokens"] = overflowingTokens;
-                encodedInputs["num_truncated_tokens"] = totalLen - maxLength;
+                encodedInputs["num_truncated_tokens"] = totalLen - args.MaxLength;
             }
 
             // Add special tokens
             List<int> sequence;
             List<int> tokenTypeIds;
-            if (addSpecialTokens) {
+            if (args.AddSpecialTokens) {
                 sequence = BuildInputsWithSpecialTokens(ids, pairIds);
                 tokenTypeIds = CreateTokenTypeIdsFromSequences(ids, pairIds);
             } else {
@@ -601,8 +560,8 @@ namespace Doji.AI.Transformers {
             if (returnTokenTypeIds == true) {
                 encodedInputs["token_type_ids"] = tokenTypeIds;
             } 
-            if (returnSpecialTokensMask) {
-                if (addSpecialTokens) {
+            if (args.ReturnSpecialTokensMask) {
+                if (args.AddSpecialTokens) {
                     encodedInputs["special_tokens_mask"] = GetSpecialTokensMask(ids, pairIds); ;
                 } else {
                     encodedInputs["special_tokens_mask"] = Enumerable.Repeat(0, sequence.Count).ToList();
@@ -610,20 +569,20 @@ namespace Doji.AI.Transformers {
             }
 
             // Check lengths
-            EventualWarnAboutTooLongSequence(encodedInputs["input_ids"] as List<int>, maxLength, verbose);
+            EventualWarnAboutTooLongSequence(encodedInputs["input_ids"] as List<int>, args.MaxLength, args.Verbose);
 
             // Padding
-            if (padding != Padding.None || returnAttentionMask == true) {
+            if (args.Padding != Padding.None || returnAttentionMask == true) {
                 encodedInputs = Pad(
                     encodedInputs,
-                    maxLength:maxLength,
-                    padding:padding,
-                    padToMultipleOf: padToMultipleOf,
+                    maxLength: args.MaxLength,
+                    padding: args.Padding,
+                    padToMultipleOf: args.PadToMultipleOf,
                     returnAttentionMask: returnAttentionMask
                 );
             }
 
-            if (returnLength) {
+            if (args.ReturnLength) {
                 encodedInputs["length"] = (encodedInputs["input_ids"] as ICollection).Count;
             }
 

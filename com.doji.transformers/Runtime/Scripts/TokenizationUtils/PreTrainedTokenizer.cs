@@ -177,25 +177,8 @@ namespace Doji.AI.Transformers {
             return BuildInputsWithSpecialTokens(TokenIds0, pair ? TokenIds1 : null).Count;
         }
 
-        protected override BatchEncoding EncodePlus(
-            string text,
-            string textPair = null,
-            bool addSpecialTokens = true,
-            Padding padding = Padding.None,
-            Truncation truncation = Truncation.None,
-            int? maxLength = null,
-            int stride = 0,
-            bool isSplitIntoWords = false,
-            int? padToMultipleOf = null,
-            bool? returnTokenTypeIds = null,
-            bool? returnAttentionMask = null,
-            bool returnOverflowingTokens = false,
-            bool returnSpecialTokensMask = false,
-            bool returnOffsetsMapping = false,
-            bool returnLength = false,
-            bool verbose = true)
-        {
-            if (returnOffsetsMapping) {
+        protected override BatchEncoding EncodePlus(EncodingParams args) {
+            if (args.ReturnOffsetsMapping) {
                 throw new NotImplementedException(
                     "returnOffsetsMapping is not available with this tokenizer. " +
                     "This feature requires a tokenizer deriving from " +
@@ -204,13 +187,10 @@ namespace Doji.AI.Transformers {
                 );
             }
 
-            List<int> firstIds = GetInputIds(text);
-            List<int> secondIds = textPair != null ? GetInputIds(textPair) : null;
+            List<int> firstIds = GetInputIds(args.Text);
+            List<int> secondIds = args.TextPair != null ? GetInputIds(args.TextPair) : null;
 
-            return PrepareForModel(firstIds, secondIds, addSpecialTokens, padding, truncation, maxLength, stride,
-                        isSplitIntoWords, padToMultipleOf, returnTokenTypeIds,
-                        returnAttentionMask, returnOverflowingTokens, returnSpecialTokensMask,
-                        returnOffsetsMapping, returnLength, verbose);
+            return PrepareForModel(args, firstIds, secondIds);
         }
 
         /// <summary>
