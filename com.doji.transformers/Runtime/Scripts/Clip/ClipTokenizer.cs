@@ -30,52 +30,14 @@ namespace Doji.AI.Transformers {
         /// <summary>
         /// Initializes a new clip tokenizer.
         /// </summary>
-        public ClipTokenizer(
-            Vocab vocab,
-            string merges,
-            string errors = "replace",
-            string unkToken = "<|endoftext|>",
-            string bosToken = "<|startoftext|>",
-            string eosToken = "<|endoftext|>",
-            string padToken = "<|endoftext|>") : this
-        (
-            vocab,
-            merges,
-            errors,
-            unkToken: new AddedToken(unkToken),
-            bosToken: new AddedToken(bosToken),
-            eosToken: new AddedToken(eosToken),
-            padToken: new AddedToken(padToken)
-        ) { }
-
-        public ClipTokenizer(
-            Vocab vocab,
-            string merges,
-            string errors,
-            AddedToken unkToken,
-            AddedToken bosToken,
-            AddedToken eosToken,
-            AddedToken padToken)
-        {
-            Initialize(
-                vocab,
-                merges,
-                errors,
-                unkToken: unkToken,
-                bosToken: bosToken,
-                eosToken: eosToken,
-                padToken: padToken
-            );
+        public ClipTokenizer(Vocab vocab, string merges, TokenizerConfig config = null) {
+            Initialize(vocab, merges, config ?? new TokenizerConfig());
         }
 
         protected void Initialize(
             Vocab vocab,
             string merges,
-            string errors,
-            AddedToken unkToken,
-            AddedToken bosToken,
-            AddedToken eosToken,
-            AddedToken padToken,
+            TokenizerConfig config,
             Dictionary<int, AddedToken> addedTokensDecoder = null,
             int modelMaxLength = int.MaxValue,
             Side paddingSide = Side.Right,
@@ -84,10 +46,10 @@ namespace Doji.AI.Transformers {
             bool cleanUpTokenizationSpaces = true,
             bool splitSpecialTokens = false)
         {
-            BosToken = bosToken;
-            EosToken = eosToken;
-            UnkToken = unkToken;
-            PadToken = padToken;
+            BosToken = config.BosToken;
+            EosToken = config.EosToken;
+            UnkToken = config.UnkToken;
+            PadToken = config.PadToken;
 
             // TODO: BasicTokenizer only a fallback, implement ftfy.fix_text instead?
             _nlp = new BasicTokenizer();
@@ -122,16 +84,12 @@ namespace Doji.AI.Transformers {
             );
 
             base.Initialize(
-                modelMaxLength,
+                config,
                 paddingSide,
                 truncationSide,
                 modelInputNames,
                 cleanUpTokenizationSpaces,
-                splitSpecialTokens,
-                unkToken: unkToken,
-                bosToken: bosToken,
-                eosToken: eosToken,
-                padToken: padToken
+                splitSpecialTokens
             );
         }
 

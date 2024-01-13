@@ -1,3 +1,5 @@
+using Newtonsoft.Json;
+
 namespace Doji.AI.Transformers {
 
     /// <summary>
@@ -9,12 +11,22 @@ namespace Doji.AI.Transformers {
     /// </summary>
     public class AddedToken : Token {
 
+        [JsonProperty("single_word")]
         public bool SingleWord { get; set; }
+
+        [JsonProperty("lstrip")]
         public bool Lstrip { get; set; }
+
+        [JsonProperty("rstrip")]
         public bool Rstrip { get; set; }
+
         public bool Special { get; set; }
+
+        [JsonProperty("normalized")]
         public bool Normalized { get; set; }
 
+        [JsonProperty("__type")]
+        public string Type { get; set; }
 
         public AddedToken(
             string content,

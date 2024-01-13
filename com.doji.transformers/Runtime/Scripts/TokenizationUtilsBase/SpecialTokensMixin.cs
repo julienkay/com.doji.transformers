@@ -189,32 +189,25 @@ namespace Doji.AI.Transformers {
         }
 
         public void InitializeSpecialTokensMixin(
-            AddedToken bosToken = null,
-            AddedToken eosToken = null,
-            AddedToken unkToken = null,
-            AddedToken sepToken = null,
-            AddedToken padToken = null,
-            AddedToken clsToken = null,
-            AddedToken maskToken = null,
+            TokenizerConfig config,
             List<Token> additionalSpecialTokens = null,
             bool verbose = false)
         {
-            BosToken = bosToken;
-            EosToken = eosToken;
-            UnkToken = unkToken;
-            SepToken = sepToken;
-            PadToken = padToken;
-            ClsToken = clsToken;
-            MaskToken = maskToken;
+            BosToken = config.BosToken;
+            EosToken = config.EosToken;
+            UnkToken = config.UnkToken;
+            SepToken = config.SepToken;
+            PadToken = config.PadToken;
+            ClsToken = config.ClsToken;
+            MaskToken = MaskToken;
             PadTokenTypeID = 0;
-            Verbose= verbose;
+            Verbose = verbose;
 
             if (additionalSpecialTokens != null) {
                 AdditionalSpecialTokens = additionalSpecialTokens;
             } else {
                 AdditionalSpecialTokens = new List<Token>();
             }
-            Verbose = Verbose;
         }
     }
 }

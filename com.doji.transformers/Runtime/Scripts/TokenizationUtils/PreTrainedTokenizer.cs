@@ -26,19 +26,12 @@ namespace Doji.AI.Transformers {
         private Dictionary<int, AddedToken> AddedTokensDecoder;
 
         protected override void Initialize(
-            int modelMaxLength = int.MaxValue,
+            TokenizerConfig config,
             Side paddingSide = Side.Right,
             Side truncationSide = Side.Right,
             List<string> modelInputNames = null,
             bool cleanUpTokenizationSpaces = true,
             bool splitSpecialTokens = false,
-            AddedToken bosToken = null,
-            AddedToken eosToken = null,
-            AddedToken unkToken = null,
-            AddedToken sepToken = null,
-            AddedToken padToken = null,
-            AddedToken clsToken = null,
-            AddedToken maskToken = null,
             Dictionary<int, AddedToken> addedTokensDecoder = null)
         {
             _tokensTrie = new Trie();
@@ -56,19 +49,12 @@ namespace Doji.AI.Transformers {
 
             // 4 init the parent class
             base.Initialize(
-                modelMaxLength,
+                config,
                 paddingSide,
                 truncationSide,
                 modelInputNames,
                 cleanUpTokenizationSpaces,
-                splitSpecialTokens,
-                bosToken: bosToken,
-                eosToken: eosToken,
-                unkToken: unkToken,
-                sepToken: sepToken,
-                padToken: padToken,
-                clsToken: clsToken,
-                maskToken: maskToken
+                splitSpecialTokens
             );
 
             // 4. If some of the special tokens are not part of the vocab, we add them, at the end.

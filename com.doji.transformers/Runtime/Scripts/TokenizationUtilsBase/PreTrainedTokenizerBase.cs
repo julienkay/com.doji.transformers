@@ -83,22 +83,15 @@ namespace Doji.AI.Transformers {
         public abstract bool Fast { get; }
 
         protected virtual void Initialize(
-            int modelMaxLength = int.MaxValue,
+            TokenizerConfig config,
             Side paddingSide = Side.Right,
             Side truncationSide = Side.Right,
             List<string> modelInputNames = null,
             bool cleanUpTokenizationSpaces = true,
             bool splitSpecialTokens = false,
-            AddedToken bosToken = null,
-            AddedToken eosToken = null,
-            AddedToken unkToken = null,
-            AddedToken sepToken = null,
-            AddedToken padToken = null,
-            AddedToken clsToken = null,
-            AddedToken maskToken = null,
             Dictionary<int, AddedToken> addedTokensDecoder = null)
         {
-            ModelMaxLength = modelMaxLength;
+            ModelMaxLength = config.ModelMaxLength;
             PaddingSide = paddingSide;
             TruncationSide = truncationSide;
             ModelInputNames = modelInputNames ?? ModelInputNames;
@@ -107,15 +100,7 @@ namespace Doji.AI.Transformers {
             DeprecationWarnings = new HashSet<string> { };
             InTargetContextManager = false;
 
-            InitializeSpecialTokensMixin(
-                bosToken: bosToken,
-                eosToken: eosToken,
-                unkToken: unkToken,
-                sepToken: sepToken,
-                padToken: padToken,
-                clsToken: clsToken,
-                maskToken: maskToken
-            );
+            InitializeSpecialTokensMixin(config);
         }
 
         /// <summary>
@@ -378,7 +363,7 @@ namespace Doji.AI.Transformers {
                 maxLength = ((maxLength.Value / padToMultipleOf.Value) + 1) * padToMultipleOf.Value;
             }
 
-            bool needsToBePadded = padding!= Padding.None && requiredInput.Count != maxLength;
+            bool needsToBePadded = padding != Padding.None && requiredInput.Count != maxLength;
 
             // Initialize attention mask if not present.
             if (returnAttentionMask == true && !encodedInputs.ContainsKey("attention_mask")) {
