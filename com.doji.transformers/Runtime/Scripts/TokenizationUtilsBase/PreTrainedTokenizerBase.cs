@@ -232,7 +232,7 @@ namespace Doji.AI.Transformers {
         /// <summary>
         /// Converts a string into a sequence of tokens, replacing unknown tokens with the `unk_token`.
         /// </summary>
-        public virtual List<string> Tokenize(string text, string textPair = null) {
+        public virtual List<string> Tokenize(string text) {
             throw new NotImplementedException($"This tokenizer does not implement {nameof(Tokenize)}");
         }
 

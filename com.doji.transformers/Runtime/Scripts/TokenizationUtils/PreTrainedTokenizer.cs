@@ -125,7 +125,7 @@ namespace Doji.AI.Transformers {
                 //    continue;
                 //}
 
-                if (!token.Special && token.Normalized && (DoLowerCase ?? false)) {
+                if (!token.Special && token.Normalized && DoLowerCase == true) {
                     token.Content = token.Content.ToLower();
                 }
 
@@ -198,8 +198,15 @@ namespace Doji.AI.Transformers {
         /// Split in words for word-based vocabulary or sub-words for sub-word-based vocabularies
         /// (BPE/SentencePieces/WordPieces). Takes care of added tokens.
         /// </summary>
-        public override List<string> Tokenize(string text, string textPair = null) {
+        public override List<string> Tokenize(string text) {
             bool splitSpecialTokens = SplitSpecialTokens;
+
+            text = PrepareForTokenization(text);
+            if (this is not ClipTokenizer) {
+                // original code passes args dynamically and specifically checks if all have been used
+                // TODO: need to figure out how to best implement that
+                throw new NotImplementedException();
+            }
 
             if (DoLowerCase == true) {
                 // convert non-special tokens to lowercase. Might be super slow as well?
@@ -302,6 +309,10 @@ namespace Doji.AI.Transformers {
                     throw new ArgumentException($"Input {text} is not valid. Should be a string, a list/tuple of strings, or a list/tuple of integers.");
                 }
             }*/
+        }
+
+        protected virtual string PrepareForTokenization(string text) {
+            return text;
         }
 
         public override List<int> GetSpecialTokensMask(List<int> tokenIds0, List<int> tokenIds1, bool alreadyHasSpecialTokens = false) {
