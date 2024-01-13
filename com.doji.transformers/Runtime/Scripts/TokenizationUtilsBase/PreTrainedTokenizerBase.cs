@@ -74,7 +74,7 @@ namespace Doji.AI.Transformers {
         public Side PaddingSide { get; set; }
         public Side TruncationSide { get; set; }
 
-        public List<string> ModelInputNames = new List<string>() { "input_ids", "token_type_ids", "attention_mask" };
+        public List<string> ModelInputNames { get; private set; } = new List<string>() { "input_ids", "token_type_ids", "attention_mask" };
         public bool CleanUpTokenizationSpaces { get; set; }
         public bool SplitSpecialTokens { get; set; }
         public HashSet<string> DeprecationWarnings { get; set; }
@@ -101,7 +101,7 @@ namespace Doji.AI.Transformers {
             ModelMaxLength = modelMaxLength;
             PaddingSide = paddingSide;
             TruncationSide = truncationSide;
-            ModelInputNames = modelInputNames ?? new List<string>();
+            ModelInputNames = modelInputNames ?? ModelInputNames;
             CleanUpTokenizationSpaces = cleanUpTokenizationSpaces;
             SplitSpecialTokens = splitSpecialTokens;
             DeprecationWarnings = new HashSet<string> { };
