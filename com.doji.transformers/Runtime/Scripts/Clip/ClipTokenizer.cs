@@ -32,7 +32,7 @@ namespace Doji.AI.Transformers {
         /// </summary>
         public ClipTokenizer(
             Vocab vocab,
-            string[] merges,
+            string merges,
             string errors = "replace",
             string unkToken = "<|endoftext|>",
             string bosToken = "<|startoftext|>",
@@ -50,7 +50,7 @@ namespace Doji.AI.Transformers {
 
         public ClipTokenizer(
             Vocab vocab,
-            string[] merges,
+            string merges,
             string errors,
             AddedToken unkToken,
             AddedToken bosToken,
@@ -70,7 +70,7 @@ namespace Doji.AI.Transformers {
 
         protected void Initialize(
             Vocab vocab,
-            string[] merges,
+            string merges,
             string errors,
             AddedToken unkToken,
             AddedToken bosToken,
@@ -98,6 +98,8 @@ namespace Doji.AI.Transformers {
 
             // Extract relevant lines and split them into tuples
             List<Tuple<string, string>> bpeMerges = merges
+                .Trim()
+                .Split(new[] { "\r\n", "\r", "\n" }, StringSplitOptions.None)
                 .Skip(1)
                 .Take(49152 - 256 - 2 + 1)
                 .Select(line => line.Split())

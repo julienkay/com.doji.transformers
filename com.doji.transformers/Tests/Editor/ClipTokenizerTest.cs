@@ -31,14 +31,14 @@ namespace Doji.AI.Transformers.Editor.Tests {
 
         private ClipTokenizer CreateTokenizer() {
             string[] vocabList = { "l", "o", "w", "e", "r", "s", "t", "i", "d", "n", "lo", "l</w>", "w</w>", "r</w>", "t</w>", "low</w>", "er</w>", "lowest</w>", "newer</w>", "wider", "<unk>", "<|startoftext|>", "<|endoftext|>" };
-            string[] mergesFile = { "#version: 0.2", "l o", "lo w</w>", "e r</w>" };
+            string merges = "#version: 0.2\n" + "l o\n" + "lo w</w>\n" + "e r</w>\n";
             Dictionary<string, int> vocabTokens = new Dictionary<string, int>();
             for (int i = 0; i < vocabList.Length; i++) {
                 vocabTokens[vocabList[i]] = i;
             }
 
             Vocab vocab = new Vocab(vocabTokens);
-            ClipTokenizer tokenizer = new ClipTokenizer(vocab, mergesFile);
+            ClipTokenizer tokenizer = new ClipTokenizer(vocab, merges);
             return tokenizer;
         }
     }
