@@ -2,29 +2,28 @@ namespace Doji.AI.Transformers {
 
     public abstract partial class PreTrainedTokenizerBase {
 
-        protected readonly struct EncodingParams {
-            public string Text                  { get; }
-            public string TextPair              { get; }
-            public string TextTarget            { get; }
-            public string TextPairTarget        { get; }
-            public bool AddSpecialTokens        { get; }
-            public Padding Padding              { get; }
-            public Truncation Truncation        { get; }
-            public int? MaxLength               { get; }
-            public int Stride                   { get; }
-            public bool IsSplitIntoWords        { get; }
-            public int? PadToMultipleOf         { get; }
-            public bool? ReturnTokenTypeIds     { get; }
-            public bool? ReturnAttentionMask    { get; }
-            public bool ReturnOverflowingTokens { get; }
-            public bool ReturnSpecialTokensMask { get; }
-            public bool ReturnOffsetsMapping    { get; }
-            public bool ReturnLength            { get; }
-            public bool Verbose                 { get; }
+        protected struct EncodingParams {
+            public Input Text                   { get; set; }
+            public Input TextPair               { get; set; }
+            public string TextTarget            { get; set; }
+            public string TextPairTarget        { get; set; }
+            public bool AddSpecialTokens        { get; set; }
+            public Padding Padding              { get; set; }
+            public Truncation Truncation        { get; set; }
+            public int? MaxLength               { get; set; }
+            public int Stride                   { get; set; }
+            public int? PadToMultipleOf         { get; set; }
+            public bool? ReturnTokenTypeIds     { get; set; }
+            public bool? ReturnAttentionMask    { get; set; }
+            public bool ReturnOverflowingTokens { get; set; }
+            public bool ReturnSpecialTokensMask { get; set; }
+            public bool ReturnOffsetsMapping    { get; set; }
+            public bool ReturnLength            { get; set; }
+            public bool Verbose                 { get; set; }
 
             public EncodingParams(
-                string text = null,
-                string textPair = null,
+                Input text = null,
+                Input textPair = null,
                 string textTarget = null,
                 string textPairTarget = null,
                 bool addSpecialTokens = true,
@@ -32,7 +31,6 @@ namespace Doji.AI.Transformers {
                 Truncation truncation = Truncation.None,
                 int? maxLength = null,
                 int stride = 0,
-                bool isSplitIntoWords = false,
                 int? padToMultipleOf = null,
                 bool? returnTokenTypeIds = null,
                 bool? returnAttentionMask = null,
@@ -51,7 +49,6 @@ namespace Doji.AI.Transformers {
                 Truncation              = truncation;
                 MaxLength               = maxLength;
                 Stride                  = stride;
-                IsSplitIntoWords        = isSplitIntoWords;
                 PadToMultipleOf         = padToMultipleOf;
                 ReturnTokenTypeIds      = returnTokenTypeIds;
                 ReturnAttentionMask     = returnAttentionMask;

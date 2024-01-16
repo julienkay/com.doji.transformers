@@ -122,23 +122,16 @@ namespace Doji.AI.Transformers {
             throw new NotImplementedException();
         }
 
-        /// <summary>
-        /// Main method to tokenize and prepare a prompt for the model.
-        /// </summary>
-        /// <remarks>
-        /// PreTrainedTokenizerBase.__call__
-        /// </remarks>
         public BatchEncoding Encode(
-            string text = null,
+            string text,
             string textPair = null,
             string textTarget = null,
             string textPairTarget = null,
             bool addSpecialTokens = true,
             Padding padding = Padding.None,
-            Truncation truncation= Truncation.None,
+            Truncation truncation = Truncation.None,
             int? maxLength = null,
             int stride = 0,
-            bool isSplitIntoWords = false,
             int? padToMultipleOf = null,
             bool? returnTokenTypeIds = null,
             bool? returnAttentionMask = null,
@@ -148,11 +141,42 @@ namespace Doji.AI.Transformers {
             bool returnLength = false,
             bool verbose = true)
         {
+            return Encode<TextInput>(text, textPair, textTarget, textPairTarget, addSpecialTokens,
+                padding, truncation, maxLength, stride, padToMultipleOf, returnTokenTypeIds,
+                returnAttentionMask, returnOverflowingTokens, returnSpecialTokensMask,
+                returnOffsetsMapping, returnLength, verbose);
+        }
+
+        /// <summary>
+        /// Main method to tokenize and prepare a prompt for the model.
+        /// </summary>
+        /// <remarks>
+        /// PreTrainedTokenizerBase.__call__
+        /// </remarks>
+        public BatchEncoding Encode<T>(
+            T text,
+            T textPair = null,
+            string textTarget = null,
+            string textPairTarget = null,
+            bool addSpecialTokens = true,
+            Padding padding = Padding.None,
+            Truncation truncation= Truncation.None,
+            int? maxLength = null,
+            int stride = 0,
+            int? padToMultipleOf = null,
+            bool? returnTokenTypeIds = null,
+            bool? returnAttentionMask = null,
+            bool returnOverflowingTokens = false,
+            bool returnSpecialTokensMask = false,
+            bool returnOffsetsMapping = false,
+            bool returnLength = false,
+            bool verbose = true) where T : Input
+        {
             EncodingParams args = new EncodingParams(
                 text, textPair, textTarget, textPairTarget, addSpecialTokens, padding,
-                truncation, maxLength, stride, isSplitIntoWords, padToMultipleOf,
-                returnTokenTypeIds, returnAttentionMask, returnOverflowingTokens,
-                returnSpecialTokensMask, returnOffsetsMapping, returnLength, verbose
+                truncation, maxLength, stride, padToMultipleOf, returnTokenTypeIds,
+                returnAttentionMask, returnOverflowingTokens, returnSpecialTokensMask,
+                returnOffsetsMapping, returnLength, verbose
             );
 
             if (text == null && textTarget == null) {
@@ -196,22 +220,49 @@ namespace Doji.AI.Transformers {
         /// PretrainedTokenizerBase._call_one
         /// </remarks>
         private BatchEncoding EncodePromptOne(EncodingParams args) {
-            if (!IsValidTextInput(args.Text)) {
-                throw new ArgumentException("text input must be of type `str` (single example), `List[str]` (batch or single pretokenized example) " +
-                                            "or `List<List[str]]` (batch of pretokenized examples).");
-            }
+            // in contrast to the original implementation, type validity of 'text'
+            // and 'textPair' can be assumed here, given our typed representations
 
-            if (args.TextPair != null && !IsValidTextInput(args.TextPair)) {
-                throw new ArgumentException("text input must be of type `str` (single example), `List[str]` (batch or single pretokenized example) " +
-                                            "or `List<List[str]]` (batch of pretokenized examples).");
-            }
+            Input text = args.Text;
+            Input textPair = args.TextPair;
+            bool isBatched = args.Text is BatchInput || args.Text is PretokenizedBatchInput;
 
-            // only non-batched version implemented for now
-            return EncodePlus(args);
+            if (isBatched) {
+                if (!textPair.IsBatch()) {
+                    throw new ArgumentException("when tokenizing batches of text, `text_pair` must be " +
+                        "a list or tuple with the same Length as `text`.");
+                }
+                if (textPair is not null && ((text as IBatchInput).Sequence.Count) != (textPair as IBatchInput).Sequence.Count) {
+                    throw new ArgumentException("when tokenizing batches of text, `text_pair` must be " +
+                        "a list or tuple with the same Length as `text`.");
+                }
+                if (textPair is not null) {
+                    throw new NotImplementedException("Usage of textPair is not yet implemented.");
+                }
+                return BatchEncodePlus(args);
+            } else {
+                return EncodePlus(args);
+            }
         }
 
+        /// <summary>
+        /// Tokenize and prepare for the model a sequence or a pair of sequences.
+        /// </summary>
+        /// <remarks>
+        /// PretrainedTokenizerBase._encode_plus
+        /// </remarks>
         protected virtual BatchEncoding EncodePlus(EncodingParams args) {
             throw new NotImplementedException($"This tokenizer does not implement {nameof(EncodePlus)}");
+        }
+
+        /// <summary>
+        ///  Tokenize and prepare for the model a list of sequences or a list of pairs of sequences.
+        /// </summary>
+        /// <remarks>
+        /// PretrainedTokenizerBase._batch_encode_plus
+        /// </remarks>
+        protected virtual BatchEncoding BatchEncodePlus(EncodingParams args) {
+            throw new NotImplementedException($"This tokenizer does not implement {nameof(BatchEncodePlus)}");
         }
 
         /// <summary>
@@ -219,37 +270,6 @@ namespace Doji.AI.Transformers {
         /// </summary>
         public virtual List<string> Tokenize(string text) {
             throw new NotImplementedException($"This tokenizer does not implement {nameof(Tokenize)}");
-        }
-
-        /// <summary>
-        /// Input type checking.
-        /// </summary>
-        /// <remarks>
-        /// Sketchy port. TODO: validate me!
-        /// </remarks>
-        private static bool IsValidTextInput(object t) {
-            if (t is string) {
-                // Strings are fine
-                return true;
-            } else if (t is IList<object> list) {
-                // List is fine as long as it is...
-                if (list.Count == 0) {
-                    // ... empty
-                    return true;
-                } else if (list[0] is string) {
-                    // ... list of strings
-                    return true;
-                } else if (list[0] is IList<string> innerList) {
-                    // ... list with an empty list or with a list of strings
-                    return innerList.Count == 0 || innerList[0] is string;
-                } else if (list[0] is Tuple<object, object> tuple) {
-                    return tuple.Item1 is string;
-                } else {
-                    return false;
-                }
-            } else {
-                return false;
-            }
         }
 
         /// <summary>
@@ -263,7 +283,7 @@ namespace Doji.AI.Transformers {
         /// followed by a call to the `pad` method to get a padded encoding.
         /// </summary>
         public BatchEncoding Pad(
-            Dictionary<string, object> encodedInputs,
+            BatchEncoding encodedInputs,
             Padding padding = Padding.None,
             int? maxLength = null,
             int? padToMultipleOf = null,
@@ -291,7 +311,7 @@ namespace Doji.AI.Transformers {
 
             if (requiredInput == null || (requiredInput is ICollection collection && collection.Count == 0)) {
                 if (returnAttentionMask == true) {
-                    encodedInputs["attention_mask"] = new List<object>();
+                    encodedInputs["attention_mask"] = new List<int>();
                 }
 
                 return new BatchEncoding(encodedInputs);
@@ -309,7 +329,10 @@ namespace Doji.AI.Transformers {
                 return new BatchEncoding(encodedInputs);
             }
 
-            int batchSize = requiredInput.Count;
+            throw new InvalidOperationException("Unexpecte requiredInput");
+            // not sure if we ever need the below if we only care about inference
+
+            /*int batchSize = requiredInput.Count;
             if (!encodedInputs.Values.All(v => (v as ICollection<object>)?.Count == batchSize)) {
                 throw new InvalidOperationException("Some items in the output dictionary have a different batch size than others.");
             }
@@ -319,7 +342,7 @@ namespace Doji.AI.Transformers {
                 padding = Padding.MaxLength;
             }
 
-            var batchOutputs = new Dictionary<string, object>();
+            BatchEncoding batchOutputs = new BatchEncoding();
             for (int i = 0; i < batchSize; i++) {
                 var inputs = encodedInputs.ToDictionary(kvp => kvp.Key, kvp => ((IList<object>)kvp.Value)[i]);
                 var outputs = _Pad(
@@ -330,20 +353,15 @@ namespace Doji.AI.Transformers {
                     returnAttentionMask
                 );
 
-                foreach (var keyValuePair in outputs) {
-                    if (batchOutputs.TryGetValue(keyValuePair.Key, out var output)) {
-                        (output as List<object>).Add(keyValuePair.Value);
-                    } else {
-                        batchOutputs[keyValuePair.Key] = new List<object>() { keyValuePair.Value };
-                    }
-                }
+                batchOutputs.Merge(outputs);
             }
 
             return new BatchEncoding(batchOutputs);
+            */
         }
 
-        private Dictionary<string, object> _Pad(
-            Dictionary<string, object> encodedInputs,
+        private BatchEncoding _Pad(
+            BatchEncoding encodedInputs,
             int? maxLength,
             Padding padding,
             int? padToMultipleOf,
@@ -500,7 +518,7 @@ namespace Doji.AI.Transformers {
                 returnAttentionMask = ModelInputNames.Contains("attention_mask");
             }
 
-            var encodedInputs = new Dictionary<string, object>();
+            BatchEncoding encodedInputs = new BatchEncoding();
 
             // Compute the total size of the returned encodings
             int totalLen = lenIds + lenPairIds + (args.AddSpecialTokens ? NumSpecialTokensToAdd(pair) : 0);
@@ -522,8 +540,9 @@ namespace Doji.AI.Transformers {
             }
 
             if (args.ReturnOverflowingTokens) {
+                System.Diagnostics.Debug.Assert(args.MaxLength.HasValue);
                 encodedInputs["overflowing_tokens"] = overflowingTokens;
-                encodedInputs["num_truncated_tokens"] = totalLen - args.MaxLength;
+                encodedInputs.NumTruncatedTokens = totalLen - args.MaxLength.Value;
             }
 
             // Add special tokens
@@ -568,7 +587,7 @@ namespace Doji.AI.Transformers {
             }
 
             if (args.ReturnLength) {
-                encodedInputs["length"] = (encodedInputs["input_ids"] as ICollection).Count;
+                encodedInputs.Length = (encodedInputs["input_ids"] as ICollection).Count;
             }
 
             BatchEncoding batchOutputs = new BatchEncoding(

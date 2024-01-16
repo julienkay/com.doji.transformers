@@ -69,7 +69,7 @@ namespace Doji.AI.Transformers {
 
         /// <summary>
         /// Add a list of new tokens to the tokenizer class. If the new tokens are not in the vocabulary, they are added to
-        /// it with indices starting from length of the current vocabulary.Special tokens are sometimes already in the
+        /// it with indices starting from length of the current vocabulary. Special tokens are sometimes already in the
         /// vocab which is why they have to be handled specifically.
         /// </summary>
         private int AddTokens(IList<Token> newTokens, bool specialTokens = false) {
@@ -163,6 +163,7 @@ namespace Doji.AI.Transformers {
             return BuildInputsWithSpecialTokens(TokenIds0, pair ? TokenIds1 : null).Count;
         }
 
+        /// <inheritdoc cref="PreTrainedTokenizerBase.EncodePlus(PreTrainedTokenizerBase.EncodingParams)"/>
         protected override BatchEncoding EncodePlus(EncodingParams args) {
             if (args.ReturnOffsetsMapping) {
                 throw new NotImplementedException(
@@ -177,6 +178,37 @@ namespace Doji.AI.Transformers {
             List<int> secondIds = args.TextPair != null ? GetInputIds(args.TextPair) : null;
 
             return PrepareForModel(args, firstIds, secondIds);
+        }
+
+        /// <inheritdoc cref="PreTrainedTokenizerBase.BatchEncodePlus(EncodingParams)"/>
+        protected override BatchEncoding BatchEncodePlus(EncodingParams args) {
+            if (args.ReturnOffsetsMapping) {
+                throw new NotImplementedException(
+                    "returnOffsetsMapping is not available with this tokenizer. " +
+                    "This feature requires a tokenizer deriving from " +
+                    "transformers.PreTrainedTokenizerFast, which has not been " +
+                    "ported to C# yet."
+                );
+            }
+
+            System.Diagnostics.Debug.Assert(args.Text is BatchInput || args.Text is PretokenizedBatchInput);
+            var batch = args.Text as IBatchInput;
+            bool isPretokenized = args.Text is PretokenizedBatchInput;
+
+            // get input ids from all sequences and flatten them into a single list
+            List<(List<int> first, List<int> second)> inputIds = new List<(List<int>, List<int>)>();
+            foreach(var input in batch.Sequence) {
+                List<int> firstIds;
+                if (isPretokenized) {
+                    firstIds = ConvertTokensToIds(input as List<string>);
+                } else {
+                    firstIds = ConvertTokensToIds(Tokenize(input as string));
+                }
+                List<int> secondIds = args.TextPair != null ? GetInputIdsBatch(args.TextPair) : null;
+                inputIds.Add((firstIds, secondIds));
+            }
+
+            return BatchPrepareForModel(args, inputIds);
         }
 
         /// <summary>
@@ -273,28 +305,79 @@ namespace Doji.AI.Transformers {
             throw new NotImplementedException($"This tokenizer does not implement {nameof(_Tokenize)}");
         }
 
-        private List<int> GetInputIds(string text) {
-            //if (text is string) {
-            var tokens = Tokenize(text);
-            return ConvertTokensToIds(tokens);
-            /*} else if (text is IEnumerable<string> && ((IEnumerable<string>)text).Any()) {
-                if (isSplitIntoWords) {
-                    var tokens = ((IEnumerable<string>)text)
-                        .SelectMany(t => Tokenize(t, isSplitIntoWords))
-                        .ToList();
-                    return ConvertTokensToIds(tokens);
-                } else {
-                    return ConvertTokensToIds((IEnumerable<string>)text);
-                }
-            } else if (text is IEnumerable<int> && ((IEnumerable<int>)text).Any()) {
-                return ((IEnumerable<int>)text).ToList();
+        /// <summary>
+        /// Get input ids for a single input input.
+        /// At this point <paramref name="text"/> is either of type <see cref="SingleInput"/>
+        /// or <see cref="PretokenizedSingleInput"/>
+        /// </summary>
+        private List<int> GetInputIds(Input text) {
+            List<string> tokens;
+            if (text is SingleInput input) {
+                tokens = Tokenize(input.Text);
+            } else if (text is PretokenizedSingleInput pretokenizedInput) {
+                tokens = pretokenizedInput.PretokenizedText;
             } else {
-                if (isSplitIntoWords) {
-                    throw new ArgumentException($"Input {text} is not valid. Should be a string or a list/tuple of strings when `isSplitIntoWords=true`.");
-                } else {
-                    throw new ArgumentException($"Input {text} is not valid. Should be a string, a list/tuple of strings, or a list/tuple of integers.");
+                throw new ArgumentException($"Input {text} is not valid. Unexpected type '{text.GetType()}'.");
+            }
+            return ConvertTokensToIds(tokens);
+        }
+
+        /// <summary>
+        /// Get input ids for a sequence/batch input input.
+        /// At this point <paramref name="text"/> is either of type <see cref="BatchInput"/>
+        /// or <see cref="PretokenizedBatchInput"/>
+        /// </summary>
+        private List<int> GetInputIdsBatch(Input text) {
+            List<string> tokens;
+            if (text is BatchInput input) {
+                tokens = new List<string>();
+                foreach (string token in input.Sequence) {
+                    tokens.AddRange(Tokenize(token));
                 }
-            }*/
+            } else if (text is PretokenizedBatchInput pretokenizedInput) {
+                tokens = new List<string>();
+                foreach (List<string> t in pretokenizedInput.Sequence) {
+                    tokens.AddRange(t);
+                }
+            } else {
+                throw new ArgumentException($"Input {text} is not valid. Unexpected type '{text.GetType()}'.");
+            }
+            return ConvertTokensToIds(tokens);
+        }
+
+        /// <summary>
+        /// Prepares a sequence of input id, or a pair of sequences of inputs ids so that
+        /// it can be used by the model. It adds special tokens, truncates sequences if
+        /// overflowing while taking into account the special tokens and manages a moving
+        /// window (with user defined stride) for overflowing tokens.
+        /// </summary>
+        private BatchEncoding BatchPrepareForModel(
+            EncodingParams args,
+            List<(List<int> firstIds, List<int> secondIds)> batchIdPairs)
+        {
+            EncodingParams batchArgs = new EncodingParams() {
+                AddSpecialTokens        =  args.AddSpecialTokens,
+                Padding                 =  Padding.None, // we pad in batch afterward
+                Truncation              =  args.Truncation,
+                MaxLength               =  args.MaxLength,
+                Stride                  =  args.Stride,
+                PadToMultipleOf         =  null, // we pad in batch afterward
+                ReturnTokenTypeIds      =  args.ReturnTokenTypeIds,
+                ReturnAttentionMask     =  false, // we pad in batch afterward
+                ReturnOverflowingTokens =  args.ReturnOverflowingTokens,
+                ReturnSpecialTokensMask =  args.ReturnSpecialTokensMask,
+                ReturnOffsetsMapping    =  args.ReturnOffsetsMapping,
+                ReturnLength            =  args.ReturnLength,
+                Verbose                 =  args.Verbose
+            };
+
+            BatchEncoding batchOutputs = new BatchEncoding();
+            foreach (var tuple in batchIdPairs) {
+                BatchEncoding outputs = PrepareForModel(batchArgs, tuple.firstIds, tuple.secondIds, prependBatchAxis: false);
+                batchOutputs.Merge(outputs);
+            }
+
+            return batchOutputs;
         }
 
         protected virtual string PrepareForTokenization(string text) {

@@ -162,7 +162,7 @@ namespace Doji.AI.Transformers {
 
         /// <summary>
         /// Return set of symbol pairs in a word.
-        /// Word is represented as tuple of symbols (symbols being variable-length strings).
+        /// Word is represented as tuple of symbols (symbols being variable-Length strings).
         /// </summary>
         private static HashSet<Tuple<string, string>> GetPairs(List<string> word) {
             var pairs = new HashSet<Tuple<string, string>>();
