@@ -3,7 +3,34 @@ using System.Collections.Generic;
 
 namespace Doji.AI.Transformers {
 
+    /// <summary>
+    /// Represents input for a tokenizer with explicit types.
+    /// Inputs can either be a single text, a batch/sequence of text,
+    /// pretokenized text, or a sequence of pretokenized texts.
+    /// </summary>
+    /// <remarks>
+    /// string and List[string[string]] have implicit conversions in the
+    /// base class because they are not ambiguous. For the others, when
+    /// calling methods like <see cref="PreTrainedTokenizerBase.Encode{T}"/>
+    /// you can use disambiguate between sequences of text and pretokenized text
+    /// by using the generic version and specifying the type like so;
+    /// <code>
+    /// tokenizer.Encode<BatchInput>(myList);
+    /// tokenizer.Encode<PretokenizedInput>(myList);
+    /// </code>
+    /// </remarks>
     public abstract class Input {
+
+        
+        public static implicit operator Input(string text) {
+            if (text == null) { return null; }
+            return new SingleInput(text);
+        }
+
+        public static implicit operator Input(List<List<string>> pretokenizedSequences) {
+            if (pretokenizedSequences == null) { return null; }
+            return new PretokenizedBatchInput(pretokenizedSequences);
+        }
 
         /// <summary>
         /// Does the input represent a sequence/batch?
@@ -29,11 +56,6 @@ namespace Doji.AI.Transformers {
     /// </summary>
     public abstract class TextInput : Input {
 
-        public static implicit operator TextInput(string text) {
-            if (text == null) { return null; }
-            return new SingleInput(text);
-        }
-
         public static implicit operator TextInput(List<string> sequence) {
             if (sequence == null) { return null; }
             return new BatchInput(sequence);
@@ -58,7 +80,6 @@ namespace Doji.AI.Transformers {
         /// </summary>
         public string Text { get; set; }
 
-        public static implicit operator SingleInput(string text) => new SingleInput(text);
         public static explicit operator string(SingleInput input) => input.Text;
 
         public SingleInput(string text) {
@@ -92,11 +113,6 @@ namespace Doji.AI.Transformers {
         public static implicit operator PretokenizedInput(List<string> pretokenizedText) {
             if (pretokenizedText == null) { return null; }
             return new PretokenizedSingleInput(pretokenizedText);
-        }
-
-        public static implicit operator PretokenizedInput(List<List<string>> pretokenizedSequences) {
-            if (pretokenizedSequences == null) { return null; }
-            return new PretokenizedBatchInput(pretokenizedSequences);
         }
     }
 

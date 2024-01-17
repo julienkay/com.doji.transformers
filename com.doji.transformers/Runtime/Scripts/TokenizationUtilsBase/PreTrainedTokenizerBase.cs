@@ -122,9 +122,10 @@ namespace Doji.AI.Transformers {
             throw new NotImplementedException();
         }
 
+        /// <inheritdoc cref="PreTrainedTokenizerBase.Encode{T}(T, T, string, string, bool, Padding, Truncation, int?, int, int?, bool?, bool?, bool, bool, bool, bool, bool)"/>
         public BatchEncoding Encode(
-            string text,
-            string textPair = null,
+            Input text,
+            Input textPair = null,
             string textTarget = null,
             string textPairTarget = null,
             bool addSpecialTokens = true,
@@ -141,7 +142,7 @@ namespace Doji.AI.Transformers {
             bool returnLength = false,
             bool verbose = true)
         {
-            return Encode<TextInput>(text, textPair, textTarget, textPairTarget, addSpecialTokens,
+            return Encode<Input>(text, textPair, textTarget, textPairTarget, addSpecialTokens,
                 padding, truncation, maxLength, stride, padToMultipleOf, returnTokenTypeIds,
                 returnAttentionMask, returnOverflowingTokens, returnSpecialTokensMask,
                 returnOffsetsMapping, returnLength, verbose);
@@ -329,7 +330,7 @@ namespace Doji.AI.Transformers {
                 return new BatchEncoding(encodedInputs);
             }
 
-            throw new InvalidOperationException("Unexpecte requiredInput");
+            throw new InvalidOperationException("Unexpected requiredInput");
             // not sure if we ever need the below if we only care about inference
 
             /*int batchSize = requiredInput.Count;
