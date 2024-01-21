@@ -46,10 +46,10 @@ namespace Doji.AI.Transformers {
             bool cleanUpTokenizationSpaces = true,
             bool splitSpecialTokens = false)
         {
-            BosToken = config.BosToken;
-            EosToken = config.EosToken;
-            UnkToken = config.UnkToken;
-            PadToken = config.PadToken;
+            config.UnkToken ??= new AddedToken("<|endoftext|>");
+            config.BosToken ??= new AddedToken("<|startoftext|>");
+            config.EosToken ??= new AddedToken("<|endoftext|>");
+            config.PadToken ??= new AddedToken("<|endoftext|>");
 
             // TODO: BasicTokenizer only a fallback, implement ftfy.fix_text instead?
             _nlp = new BasicTokenizer();

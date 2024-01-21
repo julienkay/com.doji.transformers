@@ -10,6 +10,7 @@ namespace Doji.AI.Transformers {
         public string Content { get; set; }
 
         public static implicit operator string(Token t) => t.Content;
+        public static implicit operator Token(string s) => new TokenString(s);
 
         public override string ToString() {
             return Content;

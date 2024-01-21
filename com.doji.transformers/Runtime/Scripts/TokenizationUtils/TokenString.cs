@@ -1,5 +1,3 @@
-using Newtonsoft.Json;
-
 namespace Doji.AI.Transformers {
 
     public class TokenString : Token {

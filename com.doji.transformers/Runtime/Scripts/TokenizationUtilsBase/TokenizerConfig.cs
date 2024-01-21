@@ -6,15 +6,15 @@ namespace Doji.AI.Transformers {
 
         [JsonProperty("bos_token")]
         [JsonConverter(typeof(TokenConverter))]
-        public Token BosToken { get; set; } = new AddedToken("<|startoftext|>");
+        public Token BosToken { get; set; } = null;
 
         [JsonProperty("eos_token")]
         [JsonConverter(typeof(TokenConverter))]
-        public Token EosToken { get; set; } = new AddedToken("<|endoftext|>");
+        public Token EosToken { get; set; } = null;
 
         [JsonProperty("unk_token")]
         [JsonConverter(typeof(TokenConverter))]
-        public Token UnkToken { get; set; } = new AddedToken("<|endoftext|>");
+        public Token UnkToken { get; set; } = null;
 
         [JsonProperty("sep_token")]
         [JsonConverter(typeof(TokenConverter))]
@@ -22,7 +22,7 @@ namespace Doji.AI.Transformers {
 
         [JsonProperty("pad_token")]
         [JsonConverter(typeof(TokenConverter))]
-        public Token PadToken { get; set; } = new AddedToken("<|endoftext|>");
+        public Token PadToken { get; set; } = null;
 
         [JsonProperty("cls_token")]
         [JsonConverter(typeof(TokenConverter))]

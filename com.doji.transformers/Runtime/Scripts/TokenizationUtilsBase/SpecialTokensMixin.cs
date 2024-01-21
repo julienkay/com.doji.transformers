@@ -199,7 +199,7 @@ namespace Doji.AI.Transformers {
             SepToken = config.SepToken;
             PadToken = config.PadToken;
             ClsToken = config.ClsToken;
-            MaskToken = MaskToken;
+            MaskToken = config.MaskToken;
             PadTokenTypeID = 0;
             Verbose = verbose;
 

@@ -24,6 +24,14 @@ namespace Doji.AI.Transformers.Editor.Tests {
             }
         }
 
+        private static Dictionary<string, int> VocabTokens = new Dictionary<string, int>() {
+            { "l", 0 }, { "o", 1 }, { "w", 2 }, { "e", 3 }, { "r", 4 }, { "s", 5 }, { "t", 6 }, { "i", 7 }, { "d", 8 }, { "n", 9 },
+            { "lo", 10 }, { "l</w>", 11 }, { "w</w>", 12 }, { "r</w>", 13 }, { "t</w>", 14 }, { "low</w>", 15 }, { "er</w>", 16 },
+            { "lowest</w>", 17 }, { "newer</w>", 18 }, { "wider",  19 }, { "<unk>", 20 }, { "<|startoftext|>", 21 }, { "<|endoftext|>", 22 }
+        };
+
+        private static string Merges = "#version: 0.2\n" + "l o\n" + "lo w</w>\n" + "e r</w>\n";
+
         [Test]
         [TestCaseSource(nameof(TokenizeTestData))]
         public List<string> TestTokenize(string text) {
@@ -76,15 +84,10 @@ namespace Doji.AI.Transformers.Editor.Tests {
         /// </summary>
         /// <returns></returns>
         private ClipTokenizer CreateTokenizer() {
-            string[] vocabList = { "l", "o", "w", "e", "r", "s", "t", "i", "d", "n", "lo", "l</w>", "w</w>", "r</w>", "t</w>", "low</w>", "er</w>", "lowest</w>", "newer</w>", "wider", "<unk>", "<|startoftext|>", "<|endoftext|>" };
-            string merges = "#version: 0.2\n" + "l o\n" + "lo w</w>\n" + "e r</w>\n";
-            Dictionary<string, int> vocabTokens = new Dictionary<string, int>();
-            for (int i = 0; i < vocabList.Length; i++) {
-                vocabTokens[vocabList[i]] = i;
-            }
-
-            Vocab vocab = new Vocab(vocabTokens);
-            ClipTokenizer tokenizer = new ClipTokenizer(vocab, merges);
+            Vocab vocab = new Vocab(VocabTokens);
+            TokenizerConfig config = new TokenizerConfig();
+            config.UnkToken = "<unk>";
+            ClipTokenizer tokenizer = new ClipTokenizer(vocab, Merges, config);
             return tokenizer;
         }
     }
