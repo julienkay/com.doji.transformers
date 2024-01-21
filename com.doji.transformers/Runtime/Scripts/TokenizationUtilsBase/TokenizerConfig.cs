@@ -2,7 +2,7 @@ using Newtonsoft.Json;
 
 namespace Doji.AI.Transformers {
 
-    public partial class TokenizerConfig {
+    public class TokenizerConfig {
 
         [JsonProperty("bos_token")]
         [JsonConverter(typeof(TokenConverter))]
