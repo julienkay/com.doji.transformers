@@ -5,7 +5,6 @@ using System.Linq;
 namespace Doji.AI.Transformers {
 
     public abstract partial class PreTrainedTokenizerBase : ISpecialTokensMixin {
-        public bool Verbose { get; set; }
 
         public Token BosToken { get; set; }
         public Token EosToken { get; set; }
@@ -190,8 +189,7 @@ namespace Doji.AI.Transformers {
 
         public void InitializeSpecialTokensMixin(
             TokenizerConfig config,
-            List<Token> additionalSpecialTokens = null,
-            bool verbose = false)
+            List<Token> additionalSpecialTokens = null)
         {
             BosToken = config.BosToken;
             EosToken = config.EosToken;
@@ -201,7 +199,6 @@ namespace Doji.AI.Transformers {
             ClsToken = config.ClsToken;
             MaskToken = config.MaskToken;
             PadTokenTypeID = 0;
-            Verbose = verbose;
 
             if (additionalSpecialTokens != null) {
                 AdditionalSpecialTokens = additionalSpecialTokens;

@@ -3,8 +3,6 @@ using System.Collections.Generic;
 namespace Doji.AI.Transformers {
     public interface ISpecialTokensMixin {
 
-        public bool Verbose { get; set; }
-
         public int AddSpecialTokens(Dictionary<string, AddedToken> specialTokensDict, bool replaceAdditionalSpecialTokens = true);
 
         public int AddTokens(string newTokens);

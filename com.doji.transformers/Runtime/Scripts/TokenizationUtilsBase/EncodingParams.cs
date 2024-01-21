@@ -19,7 +19,6 @@ namespace Doji.AI.Transformers {
             public bool ReturnSpecialTokensMask { get; set; }
             public bool ReturnOffsetsMapping    { get; set; }
             public bool ReturnLength            { get; set; }
-            public bool Verbose                 { get; set; }
 
             public EncodingParams(
                 Input text = null,
@@ -37,8 +36,7 @@ namespace Doji.AI.Transformers {
                 bool returnOverflowingTokens = false,
                 bool returnSpecialTokensMask = false,
                 bool returnOffsetsMapping = false,
-                bool returnLength = false,
-                bool verbose = true)
+                bool returnLength = false)
             {
                 Text                    = text;
                 TextPair                = textPair;
@@ -56,7 +54,6 @@ namespace Doji.AI.Transformers {
                 ReturnSpecialTokensMask = returnSpecialTokensMask;
                 ReturnOffsetsMapping    = returnOffsetsMapping;
                 ReturnLength            = returnLength;
-                Verbose                 = verbose;
             }
         }
     }

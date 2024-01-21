@@ -131,9 +131,7 @@ namespace Doji.AI.Transformers {
                 AddedTokensDecoder[tokenIndex] = token;
                 AddedTokensEncoder[token.Content] = tokenIndex;
 
-                if (Verbose) {
-                    Console.WriteLine($"Adding {t} to the vocabulary");
-                }
+                Log.Info($"Adding {t} to the vocabulary");
             }
 
             UpdateTrie();
@@ -367,8 +365,7 @@ namespace Doji.AI.Transformers {
                 ReturnOverflowingTokens =  args.ReturnOverflowingTokens,
                 ReturnSpecialTokensMask =  args.ReturnSpecialTokensMask,
                 ReturnOffsetsMapping    =  args.ReturnOffsetsMapping,
-                ReturnLength            =  args.ReturnLength,
-                Verbose                 =  args.Verbose
+                ReturnLength            =  args.ReturnLength
             };
 
             BatchEncoding batchOutputs = new BatchEncoding();

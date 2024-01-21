@@ -122,7 +122,7 @@ namespace Doji.AI.Transformers {
             throw new NotImplementedException();
         }
 
-        /// <inheritdoc cref="PreTrainedTokenizerBase.Encode{T}(T, T, string, string, bool, Padding, Truncation, int?, int, int?, bool?, bool?, bool, bool, bool, bool, bool)"/>
+        /// <inheritdoc cref="Encode{T}(T, T, string, string, bool, Padding, Truncation, int?, int, int?, bool?, bool?, bool, bool, bool, bool)"/>
         public BatchEncoding Encode(
             Input text,
             Input textPair = null,
@@ -139,13 +139,12 @@ namespace Doji.AI.Transformers {
             bool returnOverflowingTokens = false,
             bool returnSpecialTokensMask = false,
             bool returnOffsetsMapping = false,
-            bool returnLength = false,
-            bool verbose = true)
+            bool returnLength = false)
         {
             return Encode<Input>(text, textPair, textTarget, textPairTarget, addSpecialTokens,
                 padding, truncation, maxLength, stride, padToMultipleOf, returnTokenTypeIds,
                 returnAttentionMask, returnOverflowingTokens, returnSpecialTokensMask,
-                returnOffsetsMapping, returnLength, verbose);
+                returnOffsetsMapping, returnLength);
         }
 
         /// <summary>
@@ -170,14 +169,13 @@ namespace Doji.AI.Transformers {
             bool returnOverflowingTokens = false,
             bool returnSpecialTokensMask = false,
             bool returnOffsetsMapping = false,
-            bool returnLength = false,
-            bool verbose = true) where T : Input
+            bool returnLength = false) where T : Input
         {
             EncodingParams args = new EncodingParams(
                 text, textPair, textTarget, textPairTarget, addSpecialTokens, padding,
                 truncation, maxLength, stride, padToMultipleOf, returnTokenTypeIds,
                 returnAttentionMask, returnOverflowingTokens, returnSpecialTokensMask,
-                returnOffsetsMapping, returnLength, verbose
+                returnOffsetsMapping, returnLength
             );
 
             if (text == null && textTarget == null) {
@@ -294,9 +292,9 @@ namespace Doji.AI.Transformers {
             if (Fast) {
                 string warningKey = "Asking-to-pad-a-fast-tokenizer";
                 if (!DeprecationWarnings.Contains(warningKey)) {
-                    Console.WriteLine($"You're using a {GetType()}. Please note that with a fast tokenizer, " +
-                    " using the `__call__` method is faster than using a method to encode the text followed by a call " +
-                    " to the `pad` method to get a padded encoding.");
+                    Log.Info($"You're using a {GetType()}. Please note that with a fast tokenizer, " +
+                        $" using the `__call__` method is faster than using a method to encode the text followed by a call " +
+                        $"to the `pad` method to get a padded encoding.");
                 }
 
                 DeprecationWarnings.Add(warningKey);
@@ -574,7 +572,7 @@ namespace Doji.AI.Transformers {
             }
 
             // Check lengths
-            EventualWarnAboutTooLongSequence(encodedInputs["input_ids"] as List<int>, args.MaxLength, args.Verbose);
+            EventualWarnAboutTooLongSequence(encodedInputs["input_ids"] as List<int>, args.MaxLength);
 
             // Padding
             if (args.Padding != Padding.None || returnAttentionMask == true) {
@@ -633,13 +631,12 @@ namespace Doji.AI.Transformers {
                                     "for instance 'longest_first' or 'only_second'.";
                     }
 
-                    Console.WriteLine(errorMsg);
+                    Log.Error(errorMsg);
                 }
             } else if (strategy == Truncation.LongestFirst) {
-                Console.WriteLine("Be aware, overflowing tokens are not returned for the setting you have chosen," +
-                                    $" i.e. sequence pairs with the '{Truncation.LongestFirst}' " +
-                                    "truncation strategy. So the returned list will always be empty even if some " +
-                                    "tokens have been removed.");
+                Log.Info("Be aware, overflowing tokens are not returned for the setting you have chosen, " +
+                    "i.e. sequence pairs with the '{Truncation.LongestFirst}' truncation strategy. " +
+                    "So the returned list will always be empty even if some tokens have been removed.");
 
                 for (int i = 0; i < numTokensToRemove; i++) {
                     if (pairIds == null || ids.Count > pairIds.Count) {
@@ -674,10 +671,10 @@ namespace Doji.AI.Transformers {
                         throw new ArgumentException("Invalid truncation strategy:" + TruncationSide);
                     }
                 } else {
-                    Console.WriteLine($"We need to remove {numTokensToRemove} to truncate the input " +
-                                        $"but the second sequence has a length {pairIds.Count}. " +
-                                        $"Please select another truncation strategy than {strategy}, " +
-                                        "for instance 'longest_first' or 'only_first'.");
+                    Log.Info($"We need to remove {numTokensToRemove} to truncate the input " +
+                        $"but the second sequence has a length {pairIds.Count}. " +
+                        $"Please select another truncation strategy than {strategy}, " +
+                        $"for instance 'longest_first' or 'only_first'.");
                 }
             }
 
@@ -707,12 +704,12 @@ namespace Doji.AI.Transformers {
         /// Depending on the input and internal state we might trigger a warning
         /// about a sequence that is too long for its corresponding model
         /// </summary>
-        public void EventualWarnAboutTooLongSequence(List<int> ids, int? maxLength, bool verbose) {
-            if (!maxLength.HasValue && ids.Count > ModelMaxLength && verbose) {
+        public void EventualWarnAboutTooLongSequence(List<int> ids, int? maxLength) {
+            if (!maxLength.HasValue && ids.Count > ModelMaxLength) {
                 string warningKey = "sequence-length-is-longer-than-the-specified-maximum";
 
                 if (!DeprecationWarnings.Contains(warningKey)) {
-                    Console.WriteLine($"Token indices sequence length is longer than the specified maximum sequence length " +
+                    Log.Info($"Token indices sequence length is longer than the specified maximum sequence length " +
                         $"for this model ({ids.Count} > {ModelMaxLength}). Running this sequence through the model will result" +
                         $"in indexing errors");
                 }
