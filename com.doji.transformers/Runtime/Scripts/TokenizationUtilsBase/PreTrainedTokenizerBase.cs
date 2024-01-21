@@ -229,7 +229,7 @@ namespace Doji.AI.Transformers {
             bool isBatched = args.Text is BatchInput || args.Text is PretokenizedBatchInput;
 
             if (isBatched) {
-                if (!textPair.IsBatch()) {
+                if (textPair is not null && !textPair.IsBatch()) {
                     throw new ArgumentException("when tokenizing batches of text, `text_pair` must be " +
                         "a list or tuple with the same Length as `text`.");
                 }
