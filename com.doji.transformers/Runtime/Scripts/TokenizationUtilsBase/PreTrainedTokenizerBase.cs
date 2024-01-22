@@ -316,7 +316,7 @@ namespace Doji.AI.Transformers {
                 return new BatchEncoding(encodedInputs);
             }
 
-            if (requiredInput != null && (requiredInput)[0] is not ICollection) {
+            if (requiredInput != null && requiredInput[0] is not ICollection) {
                 encodedInputs = _Pad(
                     encodedInputs,
                     maxLength,

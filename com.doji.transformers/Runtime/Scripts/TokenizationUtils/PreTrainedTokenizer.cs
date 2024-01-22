@@ -369,10 +369,18 @@ namespace Doji.AI.Transformers {
             };
 
             BatchEncoding batchOutputs = new BatchEncoding();
-            foreach (var tuple in batchIdPairs) {
-                BatchEncoding outputs = PrepareForModel(batchArgs, tuple.firstIds, tuple.secondIds, prependBatchAxis: false);
+            foreach ((List<int> firstIds, List<int> secondIds) in batchIdPairs) {
+                BatchEncoding outputs = PrepareForModel(batchArgs, firstIds, secondIds, prependBatchAxis: false);
                 batchOutputs.Merge(outputs);
             }
+
+            batchOutputs = Pad(
+                batchOutputs,
+                args.Padding,
+                args.MaxLength,
+                args.PadToMultipleOf,
+                args.ReturnAttentionMask
+            );
 
             return batchOutputs;
         }
