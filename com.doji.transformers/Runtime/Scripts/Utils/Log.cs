@@ -8,15 +8,8 @@ namespace Doji.AI.Transformers {
 
     public static class Log{
 
-        [Conditional("DOJI_LL_DEBUG")]
-        [Conditional("DDOJI_LL_WARNING")]
-        [Conditional("DOJI_LL_ERROR")]
+        [Conditional("LOG_INFO")]
         public static void Info(string message) {
-#if DOJI_LL_ERROR
-            UnityEngine.Debug.Log(message);
-#else
-;
-#endif
 #if UNITY
             UnityEngine.Debug.Log(message);
 #else
@@ -24,20 +17,22 @@ namespace Doji.AI.Transformers {
 #endif
         }
 
-        [Conditional("DDOJI_LL_WARNING")]
-        [Conditional("DOJI_LL_ERROR")]
+        [Conditional("LOG_INFO")]
+        [Conditional("LOG_WARNINGS")]
         public static void Warning(string message) {
 #if UNITY
-            UnityEngine.Debug.Log(message);
+            UnityEngine.Debug.LogWarning(message);
 #else
             System.Console.WriteLine(message);
 #endif
         }
 
-        [Conditional("DOJI_LL_ERROR")]
+        [Conditional("LOG_INFO")]
+        [Conditional("LOG_WARNINGS")]
+        [Conditional("LOG_ERRORS")]
         public static void Error(string message) {
 #if UNITY
-            UnityEngine.Debug.Log(message);
+            UnityEngine.Debug.LogError(message);
 #else
             System.Console.WriteLine(message);
 #endif
