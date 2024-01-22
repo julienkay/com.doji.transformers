@@ -162,7 +162,7 @@ namespace Doji.AI.Transformers {
         }
 
         /// <inheritdoc cref="PreTrainedTokenizerBase.EncodePlus(PreTrainedTokenizerBase.EncodingParams)"/>
-        protected override BatchEncoding EncodePlus(EncodingParams args) {
+        protected override Encoding EncodePlus(EncodingParams args) {
             if (args.ReturnOffsetsMapping) {
                 throw new NotImplementedException(
                     "returnOffsetsMapping is not available with this tokenizer. " +
@@ -179,7 +179,7 @@ namespace Doji.AI.Transformers {
         }
 
         /// <inheritdoc cref="PreTrainedTokenizerBase.BatchEncodePlus(EncodingParams)"/>
-        protected override BatchEncoding BatchEncodePlus(EncodingParams args) {
+        protected override Encoding BatchEncodePlus(EncodingParams args) {
             if (args.ReturnOffsetsMapping) {
                 throw new NotImplementedException(
                     "returnOffsetsMapping is not available with this tokenizer. " +
@@ -349,7 +349,7 @@ namespace Doji.AI.Transformers {
         /// overflowing while taking into account the special tokens and manages a moving
         /// window (with user defined stride) for overflowing tokens.
         /// </summary>
-        private BatchEncoding BatchPrepareForModel(
+        private Encoding BatchPrepareForModel(
             EncodingParams args,
             List<(List<int> firstIds, List<int> secondIds)> batchIdPairs)
         {
@@ -367,15 +367,14 @@ namespace Doji.AI.Transformers {
                 ReturnOffsetsMapping    =  args.ReturnOffsetsMapping,
                 ReturnLength            =  args.ReturnLength
             };
-
+            
             BatchEncoding batchOutputs = new BatchEncoding();
             foreach ((List<int> firstIds, List<int> secondIds) in batchIdPairs) {
-                BatchEncoding outputs = PrepareForModel(batchArgs, firstIds, secondIds, prependBatchAxis: false);
-                batchOutputs.Merge(outputs);
+                InputEncoding outputs = PrepareForModel(batchArgs, firstIds, secondIds, prependBatchAxis: false);
+                batchOutputs.Append(outputs);
             }
 
-            batchOutputs = Pad(
-                batchOutputs,
+            Pad(batchOutputs,
                 args.Padding,
                 args.MaxLength,
                 args.PadToMultipleOf,

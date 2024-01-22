@@ -3,48 +3,37 @@ using System.Collections.Generic;
 namespace Doji.AI.Transformers {
 
     /// <summary>
-    /// Holds the output of <see cref="PreTrainedTokenizerBase.Encode"/>
-    /// and <see cref="PreTrainedTokenizerBase.EncodePlus"/> methods
-    /// (tokens, attention_masks, etc).
-    /// 
-    /// This class can be used as a dictionary. In addition, this class exposes
-    /// utility methods to map from word/character space to token space.
+    /// Represents the encoded output for a batch of text inputs.
     /// </summary>
-    public class BatchEncoding : Dictionary<string, ICollection<int>> {
-
-        internal int NumTruncatedTokens { get; set; }
-        internal int Length { get; set; }
-
-        public List<int> InputIds {
-            get {
-                TryGetValue("input_ids", out var inputIds);
-                return inputIds as List<int>;
-            }
-        }
-        public bool PrependBatchAxis { get; set;}
-        public int? NSequences { get; set; }
+    public class BatchEncoding : Encoding {
 
         public BatchEncoding() : base() { }
+        public BatchEncoding(Dictionary<string, object> dict) : base(dict) { }
 
-        public BatchEncoding(
-            Dictionary<string, ICollection<int>> data,
-            object encoding = null, // dummy, EmcodingFast implemented in the `tokenizers` library, which is not yet used
-            bool prependBatchAxis = false,
-            int? nSequences = null) : base(data)
-        {
-            PrependBatchAxis = prependBatchAxis;
-            NSequences = nSequences;
+        public override IEnumerable<int> InputIds {
+            get {
+                if (!TryGetValue("input_ids", out var inputIds)) {
+                    return null;
+                }
+                List<int> flattenedList = new List<int>();
+                foreach (var innerList in inputIds as List<List<int>>) {
+                    flattenedList.AddRange(innerList);
+                }
+                return flattenedList.ToArray();
+            }
         }
 
-        public void Merge(Dictionary<string, ICollection<int>> dict2) {
-            foreach (var kvp in dict2) {
-                if (ContainsKey(kvp.Key)) {
-                    foreach (var value in kvp.Value) {
-                        this[kvp.Key].Add(value);
-                    }
-                } else {
-                    this[kvp.Key] = new List<int>(kvp.Value);
+        /// <summary>
+        /// Appends all values from <paramref name="dict"/> to this dictionary
+        /// which turns this 
+        /// </summary>
+        /// <param name="dict"></param>
+        public void Append(Encoding dict) {
+            foreach (var kvp in dict) {
+                if (!ContainsKey(kvp.Key)) {
+                    this[kvp.Key] = new List<List<int>>();
                 }
+                (this[kvp.Key] as List<List<int>>).Add(kvp.Value as List<int>);
             }
         }
     }

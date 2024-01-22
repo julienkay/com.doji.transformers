@@ -292,7 +292,7 @@ namespace Doji.AI.Transformers {
             }
 
             foreach (var match in _pat.Matches(text)) {
-                var token = string.Join("", Encoding.UTF8.GetBytes(match.ToString()).Select(b => _byteEncoder[b]));
+                var token = string.Join("", System.Text.Encoding.UTF8.GetBytes(match.ToString()).Select(b => _byteEncoder[b]));
                 bpeTokens.AddRange(bpe(token).Split(' '));
             }
 

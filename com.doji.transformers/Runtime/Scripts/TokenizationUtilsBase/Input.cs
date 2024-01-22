@@ -49,6 +49,11 @@ namespace Doji.AI.Transformers {
 
     public interface IBatchInput {
         public IList Sequence { get; set; }
+        public int BatchSize {
+            get {
+                return this.Sequence.Count;
+            }
+        }
     }
 
     /// <summary>

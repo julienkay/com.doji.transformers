@@ -16,11 +16,58 @@ namespace Doji.AI.Transformers.Editor.Tests {
                 yield return new TestCaseData("new low never hover").Returns(new List<string>() { "n", "e", "w</w>", "low</w>", "n", "e", "v", "er</w>", "h", "o", "v", "er</w>" });
             }
         }
+
         public static IEnumerable EncodeTestData {
             get {
                 yield return new TestCaseData("lower newer").Returns(new List<int>() { 21, 10, 2, 16, 9, 3, 2, 16, 22 });
                 yield return new TestCaseData("lone loner").Returns(new List<int>() { 21, 10, 9, 20, 10, 9, 16, 22 });
                 yield return new TestCaseData("new low never hover").Returns(new List<int>() { 21, 9, 3, 12, 15, 9, 3, 20, 16, 20, 1, 20, 16, 22 });
+            }
+        }
+
+        private static List<string> BatchInput = new List<string>() { "lower newer", "lone loner", "new low never hover" };
+
+        public static IEnumerable EncodeBatchTestData {
+            get {
+                yield return new TestCaseData(BatchInput, Padding.None).Returns(
+                    new List<List<int>>() {
+                        new List<int> { 21, 10, 2, 16, 9, 3, 2, 16, 22 },
+                        new List<int> { 21, 10, 9, 20, 10, 9, 16, 22 },
+                        new List<int> { 21, 9, 3, 12, 15, 9, 3, 20, 16, 20, 1, 20, 16, 22 }
+                    }
+                );
+                yield return new TestCaseData(BatchInput, Padding.Longest).Returns(
+                    new List<List<int>>() {
+                        new List<int> { 21, 10, 2, 16, 9,  3,  2, 16, 22, 22, 22, 22, 22, 22 },
+                        new List<int> { 21, 10, 9, 20, 10, 9, 16, 22, 22, 22, 22, 22, 22, 22 },
+                        new List<int> { 21,  9, 3, 12, 15, 9,  3, 20, 16, 20,  1, 20, 16, 22 }
+                    }
+                );
+                yield return new TestCaseData(BatchInput, Padding.MaxLength).Returns(
+                    new List<List<int>>() {
+                        new List<int> {
+                            21, 10, 2, 16, 9, 3, 2, 16, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22,
+                            22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22,
+                            22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22,
+                            22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22,
+                            22, 22, 22, 22, 22, 22, 22, 22
+                        },
+                        new List<int> {
+                            21, 10, 9, 20, 10, 9, 16, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22,
+                            22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22,
+                            22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22,
+                            22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22,
+                            22, 22, 22, 22, 22, 22, 22, 22
+                        },
+                        new List<int> {
+                            21, 9, 3, 12, 15, 9, 3, 20, 16, 20, 1, 20, 16, 22, 22, 22, 22, 22, 22,
+                            22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22,
+                            22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22,
+                            22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22, 22,
+                            22, 22, 22, 22
+                        }
+                    }
+                );
             }
         }
 
@@ -48,35 +95,25 @@ namespace Doji.AI.Transformers.Editor.Tests {
             Assert.IsTrue(encoding.ContainsKey("input_ids"), "Encoded ids not found in 'input_ids'.");
             object encodedIds = encoding["input_ids"];
             Assert.IsTrue(encodedIds is ICollection, "Unexpected type for encoded text.");
+            Assert.IsTrue(encoding is InputEncoding, "Unexpected type for encoding.");
         }
 
         [Test]
         [TestCaseSource(nameof(EncodeTestData))]
-        public List<int> TestEncode(string text) {
+        public IEnumerable<int> TestEncode(string text) {
             ClipTokenizer t = CreateTokenizer();
-            var encodedIds = t.Encode(text).InputIds;
+            InputEncoding encoding = t.Encode(text) as InputEncoding;
+            var encodedIds = encoding.InputIds;
             return encodedIds;
         }
 
         [Test]
-        public void TestEncodeBatch() {
+        [TestCaseSource(nameof(EncodeBatchTestData))]
+        public List<List<int>> TestEncodeBatch(List<string> prompts, Padding padding) {
             ClipTokenizer t = CreateTokenizer();
-            List<string> prompts = new List<string>() { "lower newer", "lone loner", "new low never hover" };
-            var encodedIds = t.Encode<BatchInput>(prompts).InputIds;
-
-            //TODO: verify whether we should actually return a flattened list here and not individual lists per sequence
-            List<int> exptected = new List<int>() { 21, 10, 2, 16, 9, 3, 2, 16, 22, 21, 10, 9, 20, 10, 9, 16, 22, 21, 9, 3, 12, 15, 9, 3, 20, 16, 20, 1, 20, 16, 22 };
-            CollectionAssert.AreEqual(encodedIds, exptected);
-        }
-
-        [Test]
-        public void TestEncodeBatchPadding() {
-            ClipTokenizer t = CreateTokenizer();
-            List<string> prompts = new List<string>() { "lower newer", "lone loner", "new low never hover" };
-            var encodedIds = t.Encode<BatchInput>(prompts, padding: Padding.MaxLength, maxLength: 77).InputIds;
-
-            List<int> exptected = new List<int>() { 21, 10, 2, 16, 9, 3, 2, 16, 22, 22, 22, 22, 22, 22, 21, 10, 9, 20, 10, 9, 16, 22, 22, 22, 22, 22, 22, 22, 21, 9, 3, 12, 15, 9, 3, 20, 16, 20, 1, 20, 16, 22 };
-            CollectionAssert.AreEqual(encodedIds, exptected);
+            BatchEncoding encoding = t.Encode<BatchInput>(prompts, padding: padding, maxLength: 77) as BatchEncoding;
+            var encodedIds = encoding["input_ids"] as List<List<int>>;
+            return encodedIds;
         }
 
         /// <summary>

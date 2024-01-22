@@ -271,7 +271,7 @@ namespace Doji.AI.Transformers.Editor.Tests {
             {173, 'Ń'}
         };
 
-            CollectionAssert.AreEquivalent(bytestoUnicode, expected);
+            CollectionAssert.AreEquivalent(expected, bytestoUnicode);
         }
     }
 }
