@@ -1,7 +1,8 @@
 This package contains third-party software components governed by the license(s) indicated below:
 ---------
 
-Component Name: transformers
+Component Name: huggingface/transformers
+Source: https://github.com/huggingface/transformers
 
 License Type: Apache License 2.0
 
