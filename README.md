@@ -9,9 +9,9 @@ A Unity package to run pretrained transformer models with Unity Sentis
 
 ## About
 
-This package is meant to be used together with the [com.doji.diffusers] package to enable running Stable Diffusion models in Unity.
+This package is meant to be used together with the [com.doji.diffusers] package to run Stable Diffusion models in Unity.
 
-It is intended to be a C# port of Hugging Face’s [transformers] library. As of today, the only implementation available is:
+It is essentially a C# port of Hugging Face’s [transformers] library. As of today, the only implementations available are:
 - a CLIPTokenizer
 - tokenizer base classes
 
