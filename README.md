@@ -17,6 +17,6 @@ It is essentially a C# port of Hugging Face’s [transformers] library. As of to
 
 [OpenUPM]: https://openupm.com/packages/com.doji.transformers
 [Documentation (coming soon)]: https://github.com/julienkay/com.doji.transformers
-[Feedback/Questions]: https://discussions.unity.com/c/ai-beta/sentis/10
+[Feedback/Questions]: https://discussions.unity.com/t/stable-diffusion-diffusers-transformers-package/332701
 [transformers]: https://github.com/huggingface/transformers
 [com.doji.diffusers]: https://github.com/julienkay/com.doji.diffusers
