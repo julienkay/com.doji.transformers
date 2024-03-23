@@ -1,5 +1,7 @@
+using Newtonsoft.Json;
 using System.Collections;
 using System.Collections.Generic;
+using System.Text;
 
 namespace Doji.AI.Transformers {
 
@@ -19,9 +21,9 @@ namespace Doji.AI.Transformers {
     /// tokenizer.Encode<PretokenizedInput>(myList);
     /// </code>
     /// </remarks>
+    [JsonConverter(typeof(InputConverter))]
     public abstract class Input {
 
-        
         public static implicit operator Input(string text) {
             if (text == null) { return null; }
             return new SingleInput(text);
@@ -45,6 +47,8 @@ namespace Doji.AI.Transformers {
         public bool IsPretokenized() {
             return this is BatchInput || this is PretokenizedBatchInput;
         }
+
+        public abstract override string ToString();
     }
 
     public interface IBatchInput {
@@ -90,6 +94,10 @@ namespace Doji.AI.Transformers {
         public SingleInput(string text) {
             Text = text;
         }
+
+        public override string ToString() {
+            return Text;
+        }
     }
 
     /// <summary>
@@ -107,6 +115,14 @@ namespace Doji.AI.Transformers {
 
         public BatchInput(List<string> sequence) {
             Sequence = sequence;
+        }
+
+        public override string ToString() {
+            StringBuilder sb = new StringBuilder();
+            foreach(string s in Sequence) {
+                sb.AppendLine(s);
+            }
+            return sb.ToString();
         }
     }
 
@@ -133,6 +149,14 @@ namespace Doji.AI.Transformers {
         public PretokenizedSingleInput(List<string> pretokenizedText) {
             PretokenizedText = pretokenizedText;
         }
+
+        public override string ToString() {
+            StringBuilder sb = new StringBuilder();
+            foreach (string s in PretokenizedText) {
+                sb.AppendLine(s);
+            }
+            return sb.ToString();
+        }
     }
 
     public class PretokenizedBatchInput : PretokenizedInput, IBatchInput {
@@ -146,6 +170,16 @@ namespace Doji.AI.Transformers {
 
         public PretokenizedBatchInput(List<List<string>> pretokenizedSequences) {
             Sequence = pretokenizedSequences;
+        }
+
+        public override string ToString() {
+            StringBuilder sb = new StringBuilder();
+            foreach (List<string> batch in Sequence) {
+                foreach (string token in batch) {
+                    sb.AppendLine(token);
+                }
+            }
+            return sb.ToString();
         }
     }
 }
