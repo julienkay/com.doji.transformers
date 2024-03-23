@@ -12,7 +12,7 @@ namespace Doji.AI.Transformers {
     /// pretrained tokenizers as well as adding tokens to the vocabulary.
     /// 
     /// This class also contain the added tokens in a unified way on top
-    /// of all tokenizers so we don't have to handle thespecific vocabulary
+    /// of all tokenizers so we don't have to handle the specific vocabulary
     /// augmentation methods of the various underlying dictionary structures
     /// (BPE, sentencepiece...).
     /// </summary>
