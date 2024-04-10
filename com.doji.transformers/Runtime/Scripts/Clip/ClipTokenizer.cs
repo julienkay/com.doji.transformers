@@ -1,4 +1,4 @@
-using System;
+ï»¿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -132,9 +132,9 @@ namespace Doji.AI.Transformers {
         /// TODO: Look into C# equivalent for @lru_cache()
         /// </summary>
         internal static Dictionary<int, char> BytesToUnicode() {
-            List<int> bs = GetRange('!', '~' + 1) //!:35, ~:126
-                .Concat(GetRange('¡', '¬' + 1)) // ¡:161, ¬:172
-                .Concat(GetRange('®', 'ÿ' + 1)) // ®:174, ÿ:255
+            List<int> bs = GetRange(33, 127) // ! to ~
+                .Concat(GetRange(161, 173))  // Â¡ to Â¬
+                .Concat(GetRange(174, 256))  // Â® to Ã¿
                 .ToList();
 
             List<int> cs = new List<int>(bs);

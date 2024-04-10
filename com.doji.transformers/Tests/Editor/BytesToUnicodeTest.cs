@@ -1,5 +1,4 @@
-﻿using Doji.AI.Transformers;
-using NUnit.Framework;
+﻿using NUnit.Framework;
 using System.Collections.Generic;
 
 namespace Doji.AI.Transformers.Editor.Tests {
