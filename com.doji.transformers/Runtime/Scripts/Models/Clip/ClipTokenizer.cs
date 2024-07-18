@@ -1,7 +1,7 @@
-﻿using System;
+﻿using static Doji.AI.Transformers.TokenizationUtils;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Doji.AI.Transformers {
@@ -30,22 +30,17 @@ namespace Doji.AI.Transformers {
         /// <summary>
         /// Initializes a new clip tokenizer.
         /// </summary>
-        public ClipTokenizer(Vocab vocab, string merges, TokenizerConfig config = null) {
-            Initialize(vocab, merges, config ?? new TokenizerConfig());
-        }
-
-        protected void Initialize(
+        public ClipTokenizer(
             Vocab vocab,
             string merges,
-            TokenizerConfig config,
-            Dictionary<int, AddedToken> addedTokensDecoder = null,
-            int modelMaxLength = int.MaxValue,
+            TokenizerConfig config = null,
             Side paddingSide = Side.Right,
             Side truncationSide = Side.Right,
             List<string> modelInputNames = null,
             bool cleanUpTokenizationSpaces = true,
-            bool splitSpecialTokens = false)
+            bool splitSpecialTokens = false) : base(paddingSide, truncationSide, modelInputNames, cleanUpTokenizationSpaces, splitSpecialTokens)
         {
+            config ??= new TokenizerConfig();
             config.UnkToken ??= new AddedToken("<|endoftext|>");
             config.BosToken ??= new AddedToken("<|startoftext|>");
             config.EosToken ??= new AddedToken("<|endoftext|>");
@@ -83,14 +78,7 @@ namespace Doji.AI.Transformers {
                 RegexOptions.IgnoreCase
             );
 
-            base.Initialize(
-                config,
-                paddingSide,
-                truncationSide,
-                modelInputNames,
-                cleanUpTokenizationSpaces,
-                splitSpecialTokens
-            );
+            base.Initialize(config);
         }
 
         protected override Dictionary<string, int> GetVocab() {
@@ -114,50 +102,6 @@ namespace Doji.AI.Transformers {
                 result.AddRange(list);
             }
             return result;
-        }
-
-        /// <summary>
-        /// Returns list of utf-8 byte and a mapping to unicode strings.
-        /// We specifically avoid mapping to whitespace/control
-        /// characters the bpe code barfs on.
-        /// 
-        /// The reversible bpe codes work on unicode strings.
-        /// This means you need a large # of unicode characters in your
-        /// vocab if you want to avoid UNKs. When you're at something
-        /// like a 10B token dataset you end up needing around 5K for
-        /// decent coverage. This is a significant percentage of your
-        /// normal, say, 32K bpe vocab.To avoid that, we want lookup
-        /// tables between utf-8 bytes and unicode strings.
-        /// 
-        /// TODO: Look into C# equivalent for @lru_cache()
-        /// </summary>
-        internal static Dictionary<int, char> BytesToUnicode() {
-            List<int> bs = GetRange(33, 127) // ! to ~
-                .Concat(GetRange(161, 173))  // ¡ to ¬
-                .Concat(GetRange(174, 256))  // ® to ÿ
-                .ToList();
-
-            List<int> cs = new List<int>(bs);
-            int n = 0;
-
-            for (int b = 0; b < 256; b++) {
-                if (!bs.Contains(b)) {
-                    bs.Add(b);
-                    cs.Add(256 + n);
-                    n++;
-                }
-            }
-
-            Dictionary<int, char> result = new Dictionary<int, char>();
-            for (int i = 0; i < bs.Count; i++) {
-                result.Add(bs[i], (char)cs[i]);
-            }
-
-            return result;
-        }
-
-        private static IEnumerable<int> GetRange(int start, int end) {
-            return Enumerable.Range(start, end - start);
         }
 
         /// <summary>

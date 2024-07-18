@@ -82,21 +82,23 @@ namespace Doji.AI.Transformers {
 
         public abstract bool Fast { get; }
 
-        protected virtual void Initialize(
-            TokenizerConfig config,
+        public PreTrainedTokenizerBase(
             Side paddingSide = Side.Right,
             Side truncationSide = Side.Right,
             List<string> modelInputNames = null,
             bool cleanUpTokenizationSpaces = true,
-            bool splitSpecialTokens = false,
-            Dictionary<int, AddedToken> addedTokensDecoder = null)
+            bool splitSpecialTokens = false)
         {
-            ModelMaxLength = config.ModelMaxLength;
             PaddingSide = paddingSide;
             TruncationSide = truncationSide;
             ModelInputNames = modelInputNames ?? ModelInputNames;
             CleanUpTokenizationSpaces = cleanUpTokenizationSpaces;
             SplitSpecialTokens = splitSpecialTokens;
+        }
+
+        protected virtual void Initialize(TokenizerConfig config) {
+            ModelMaxLength = config.ModelMaxLength;
+
             DeprecationWarnings = new HashSet<string> { };
             InTargetContextManager = false;
 
