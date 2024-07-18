@@ -1,8 +1,14 @@
 using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
 
 namespace Doji.AI.Transformers {
 
     public class TokenizerConfig {
+
+        [JsonProperty("added_tokens_decoder")]
+        [JsonConverter(typeof(AddedTokensConverter))]
+        public Dictionary<int, AddedToken> AddedTokensDecoder;
 
         [JsonProperty("bos_token")]
         [JsonConverter(typeof(TokenConverter))]
@@ -47,6 +53,21 @@ namespace Doji.AI.Transformers {
         public static TokenizerConfig Deserialize(string json) {
             TokenizerConfig config = JsonConvert.DeserializeObject<TokenizerConfig>(json);
             return config;
+        }
+
+        private class AddedTokensConverter : JsonConverter {
+            public override bool CanConvert(Type objectType) {
+                return true;
+            }
+            
+            public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer) {
+                var addedTokens = serializer.Deserialize<Dictionary<int, AddedToken>>(reader);
+                return addedTokens;
+            }
+
+            public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer) {
+                throw new NotImplementedException();
+            }
         }
     }
 }
