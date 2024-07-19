@@ -561,7 +561,7 @@ namespace Doji.AI.Transformers {
             } 
             if (args.ReturnSpecialTokensMask) {
                 if (args.AddSpecialTokens) {
-                    encodedInputs["special_tokens_mask"] = GetSpecialTokensMask(ids, pairIds); ;
+                    encodedInputs["special_tokens_mask"] = GetSpecialTokensMask(ids, pairIds);
                 } else {
                     encodedInputs["special_tokens_mask"] = Enumerable.Repeat(0, sequence.Count).ToList();
                 }

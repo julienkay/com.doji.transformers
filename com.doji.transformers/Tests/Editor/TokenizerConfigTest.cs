@@ -42,9 +42,6 @@ namespace Doji.AI.Transformers.Editor.Tests {
             Assert.That(config.ClsToken, Is.Null);
             Assert.That(config.MaskToken, Is.Null);
             Assert.That(config.AddedTokensDecoder, Is.Not.Null);
-            foreach(var token in config.AddedTokensDecoder) {
-                UnityEngine.Debug.Log(token.Value.ToString());
-            }
         }
     }
 }

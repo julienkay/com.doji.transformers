@@ -5,6 +5,12 @@ using System.Collections.Generic;
 namespace Doji.AI.Transformers {
 
     public class TokenizerConfig {
+        
+        [JsonProperty("add_prefix_space")]
+        public bool? AddPrefixSpace = null;
+
+        [JsonProperty("add_bos_token")]
+        public bool? AddBosToken = null;
 
         [JsonProperty("added_tokens_decoder")]
         [JsonConverter(typeof(AddedTokensConverter))]
