@@ -12,6 +12,9 @@ namespace Doji.AI.Transformers {
         [JsonProperty("add_bos_token")]
         public bool? AddBosToken = null;
 
+        [JsonProperty("add_eos_token")]
+        public bool? AddEosToken = null;
+
         [JsonProperty("added_tokens_decoder")]
         [JsonConverter(typeof(AddedTokensConverter))]
         public Dictionary<int, AddedToken> AddedTokensDecoder;
@@ -49,6 +52,9 @@ namespace Doji.AI.Transformers {
 
         [JsonProperty("errors")]
         public string Errors { get; set; } = "replace";
+
+        [JsonProperty("legacy")]
+        public bool? Legacy { get; set; }
 
         [JsonProperty("model_max_length")]
         public int ModelMaxLength { get; set; } = int.MaxValue;

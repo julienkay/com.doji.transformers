@@ -96,6 +96,7 @@ namespace Doji.AI.Transformers {
             return CombineLists(bosToken, TokenIds0, eosToken, eosToken, TokenIds1, eosToken);
 
         }
+
         private List<int> CombineLists(params List<int>[] lists) {
             List<int> result = new List<int>();
             foreach (var list in lists) {

@@ -22,8 +22,8 @@ namespace Doji.AI.Transformers {
         public override bool Fast { get => false; }
 
         private Trie _tokensTrie;
-        private Dictionary<string, int> AddedTokensEncoder;
-        private Dictionary<int, AddedToken> AddedTokensDecoder;
+        protected Dictionary<string, int> AddedTokensEncoder;
+        protected Dictionary<int, AddedToken> AddedTokensDecoder;
 
         public PreTrainedTokenizer(
             Side paddingSide = Side.Right,
@@ -210,11 +210,11 @@ namespace Doji.AI.Transformers {
             bool splitSpecialTokens = SplitSpecialTokens;
 
             text = PrepareForTokenization(text);
-            if (this is not ClipTokenizer) {
-                // original code passes args dynamically and specifically checks if all have been used
-                // TODO: need to figure out how to best implement that
-                throw new NotImplementedException();
-            }
+
+            // original code passes args dynamically and specifically checks if all have been used
+            // t.b.d.: Do we need to do this as well?
+            /*if kwargs:
+                logger.warning(f"Keyword arguments {kwargs} not recognized.")*/
 
             if (DoLowerCase == true) {
                 // convert non-special tokens to lowercase. Might be super slow as well?
@@ -430,8 +430,48 @@ namespace Doji.AI.Transformers {
             return ConvertTokenToId(token);
         }
 
+        /// <summary>
+        /// Converts a token (string) in an id using the vocab.
+        /// </summary>
         protected virtual int ConvertTokenToId(string token) {
             throw new NotImplementedException($"This tokenizer does not implement {nameof(ConvertTokenToId)}");
+        }
+
+        /// <summary>
+        /// Converts a single index or a sequence of indices in a token or a sequence of tokens,
+        /// using the vocabulary and added tokens.
+        /// </summary>
+        /// <param name="ids">The token id (or token ids) to convert to tokens.</param>
+        /// <param name="skipSpecialTokens">Whether or not to remove special tokens in the decoding.</param>
+        /// <returns>The decoded token(s).</returns>
+        protected List<string> ConvertIdsToTokens(List<int> ids, bool skipSpecialTokens = false) {
+            List<string> tokens = new List<string>();
+            foreach (int index in ids) {
+                if (skipSpecialTokens && AllSpecialIds.Contains(index)) {
+                    continue;
+                }
+                if (AddedTokensDecoder.ContainsKey(index)) {
+                    tokens.Add(AddedTokensDecoder[index].Content);
+                } else {
+                    tokens.Add(ConvertIdToToken(index));
+                }
+            }
+            return tokens;
+        }
+
+        protected string ConvertIdsToTokens(int id, bool skip_special_tokens = false) {
+            if (AddedTokensDecoder.ContainsKey(id)) {
+                return AddedTokensDecoder[id].Content;
+            } else {
+                return ConvertIdToToken(id);
+            }
+        }
+
+        /// <summary>
+        /// Converts an index (integer) in a token (string) using the vocab.
+        /// </summary>
+        protected virtual string ConvertIdToToken(int index) {
+            throw new NotImplementedException($"This tokenizer does not implement {nameof(ConvertIdToToken)}");
         }
     }
 }

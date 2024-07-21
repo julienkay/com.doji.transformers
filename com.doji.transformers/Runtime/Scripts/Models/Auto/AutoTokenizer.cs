@@ -1,7 +1,6 @@
 using Newtonsoft.Json;
 using System;
 using System.IO;
-using Unity.Sentis;
 using UnityEngine;
 using static Doji.AI.Transformers.TokenizationUtilsBase;
 
@@ -69,10 +68,11 @@ namespace Doji.AI.Transformers {
 #endif
             // use the tokenizer_config file to get the specific tokenizer class.
             TokenizerConfig config = LoadTokenizerConfig(pretrainedModelNameOrPath);
+            string llamaVocabPath = Path.Combine(Application.streamingAssetsPath, pretrainedModelNameOrPath, "tokenizer.model");
 
             return config.TokenizerClass switch {
                 "CLIPTokenizer" => new ClipTokenizer(null, null),
-                //"LlamaTokenizer" => new LlamaTokenizer(),
+                "LlamaTokenizer" => new LlamaTokenizer(llamaVocabPath),
                 _ => throw new NotImplementedException($"'{config.TokenizerClass}' not yet implemented."),
             };
 

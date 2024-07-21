@@ -5,7 +5,8 @@
   "description": "State-of-the-art transformer models to perform tasks on different modalities such as text, vision, and audio with Unity Sentis",
   "dependencies": {
     "com.unity.sentis": "1.3.0-pre.3",
-    "com.unity.nuget.newtonsoft-json": "3.2.1"
+    "com.unity.nuget.newtonsoft-json": "3.2.1",
+    "com.doji.sentencepiece": "0.0.0"
   },
   "author": {
     "name": "Doji Technologies",

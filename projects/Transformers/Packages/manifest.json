@@ -1,6 +1,7 @@
 {
   "dependencies": {
     "com.doji.transformers": "file:../../../com.doji.transformers",
+    "com.doji.sentencepiece": "file:../../../../com.doji.sentencepiece/com.doji.sentencepiece",
     "com.unity.ide.visualstudio": "2.0.22",
     "com.unity.textmeshpro": "3.0.6",
     "com.unity.ugui": "1.0.0",
@@ -28,5 +29,7 @@
     "com.unity.modules.vr": "1.0.0",
     "com.unity.modules.xr": "1.0.0"
   },
-  "testables" : ["com.doji.transformers"]
+  "testables": [
+    "com.doji.transformers"
+  ]
 }

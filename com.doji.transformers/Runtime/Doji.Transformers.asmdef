@@ -2,7 +2,8 @@
     "name": "Doji.Transformers",
     "rootNamespace": "",
     "references": [
-        "GUID:c98377141161c7746a178fb5cb1af075"
+        "GUID:c98377141161c7746a178fb5cb1af075",
+        "GUID:a6383e49882b5c445bf832fb8f773642"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

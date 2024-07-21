@@ -67,18 +67,17 @@ namespace Doji.AI.Transformers {
             base.Initialize(config);
         }
 
-        protected override List<int> BuildInputsWithSpecialTokens(List<int> TokenIds0, List<int> TokenIds1 = null) {
-            List<int> bosTokenIds = null;
-            if (AddBosToken) {
-                bosTokenIds = new List<int> { BosTokenId.Value };
-            } else {
-                bosTokenIds = new();
-            }
+        protected override Dictionary<string, int> GetVocab() {
+            return Vocab.Encoder;
+        }
 
-            var output = bosTokenIds.Concat(TokenIds0).ToList();
+        protected override List<int> BuildInputsWithSpecialTokens(List<int> TokenIds0, List<int> TokenIds1 = null) {
+            List<int> bosTokenIds = AddBosToken ? new List<int> { BosTokenId.Value } : new();
+
+            var output = bosTokenIds.Concat(TokenIds0);
 
             if (TokenIds1 == null) {
-                return output;
+                return output.ToList();
             }
 
             return output.Concat(bosTokenIds).Concat(TokenIds1).ToList();
