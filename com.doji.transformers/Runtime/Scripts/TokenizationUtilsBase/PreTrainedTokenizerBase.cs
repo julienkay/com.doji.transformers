@@ -288,8 +288,7 @@ namespace Doji.AI.Transformers {
             Padding padding = Padding.None,
             int? maxLength = null,
             int? padToMultipleOf = null,
-            bool? returnAttentionMask = null,
-            string returnTensors = null)
+            bool? returnAttentionMask = null)
         {
             if (Fast) {
                 string warningKey = "Asking-to-pad-a-fast-tokenizer";
@@ -314,6 +313,7 @@ namespace Doji.AI.Transformers {
                 if (returnAttentionMask == true) {
                     encodedInputs["attention_mask"] = new List<int>();
                 }
+                return;
             }
 
             // handle single inputs
