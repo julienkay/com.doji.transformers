@@ -56,9 +56,24 @@ namespace Doji.AI.Transformers {
         [JsonProperty("legacy")]
         public bool? Legacy { get; set; }
 
-        [JsonProperty("model_max_length")]
-        public int ModelMaxLength { get; set; } = int.MaxValue;
+        [JsonProperty("model_input_names")]
+        public List<string> ModelInputNames { get; set; }
 
+        [JsonProperty("clean_up_tokenization_spaces")]
+        public bool? CleanUpTokenizationSpaces { get; set; }
+
+        [JsonProperty("split_special_tokens")]
+        public bool? SplitSpecialTokens { get; set; }
+        
+        [JsonProperty("model_max_length")]
+        public int? ModelMaxLength { get; set; }
+
+        [JsonProperty("padding_side")]
+        public Side? PaddingSide { get; set; }
+
+        [JsonProperty("truncation_side")]
+        public Side? TruncationSide { get; set; }
+        
         [JsonProperty("tokenizer_class")]
         public string TokenizerClass { get; set; }
 

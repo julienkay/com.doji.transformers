@@ -8,35 +8,23 @@ namespace Doji.AI.Transformers {
 
     public class LlamaTokenizer : PreTrainedTokenizer {
 
-        private static string SPIECE_UNDERLINE = '\u2581'.ToString();
+        private static readonly string SPIECE_UNDERLINE = '\u2581'.ToString();
 
         private string VocabFilePath { get; set; }
-        private bool AddBosToken { get; set; }
-        private bool AddEosToken { get; set; }
-        private bool AddPrefixSpace { get; set; }
-        private bool Legacy { get; set; }
+
+        private bool AddBosToken => Config.AddBosToken.Value;
+        private bool AddEosToken => Config.AddEosToken.Value;
+        private bool AddPrefixSpace => Config.AddPrefixSpace.Value;
+        private bool Legacy => Config.Legacy.Value;
 
         private SentencePieceBpe _spModel;
 
-        public LlamaTokenizer(
-            string vocabFilePath,
-            TokenizerConfig config = null,
-            Side paddingSide = Side.Right,
-            Side truncationSide = Side.Right,
-            List<string> modelInputNames = null,
-            bool cleanUpTokenizationSpaces = false,
-            bool splitSpecialTokens = false,
-            bool addPrefixSpace = true) : base(paddingSide, truncationSide, modelInputNames, cleanUpTokenizationSpaces, splitSpecialTokens)
-        {
-            config ??= new TokenizerConfig();
-            config.UnkToken ??= new AddedToken("<unk>");
-            config.BosToken ??= new AddedToken("<s>");
-            config.EosToken ??= new AddedToken("</s>");
-            config.AddPrefixSpace = AddPrefixSpace = addPrefixSpace;
-            config.AddBosToken = AddBosToken = true;
-            config.AddEosToken = AddEosToken = false;
+        public LlamaTokenizer(string vocabFilePath, TokenizerConfig config = null) : base(config) {
+            Config.UnkToken ??= new AddedToken("<unk>");
+            Config.BosToken ??= new AddedToken("<s>");
+            Config.EosToken ??= new AddedToken("</s>");
 
-            if (config.Legacy == null) {
+            if (Config.Legacy == null) {
                 Log.Warning(
                     $"You are using the default legacy behaviour of the {nameof(LlamaTokenizer)}. This is" +
                     " expected, and simply means that the `legacy` (previous) behavior will be used so nothing changes for you." +
@@ -46,11 +34,14 @@ namespace Doji.AI.Transformers {
                     " you can ignore this message"
                 );
             }
-            Legacy = config.Legacy ?? true;
+            Config.Legacy ??= true;
             VocabFilePath = vocabFilePath;
+            Config.AddBosToken ??= true;
+            Config.AddEosToken ??= false;
             _spModel = GetSpmProcessor();
+            Config.AddPrefixSpace ??= true;
 
-            base.Initialize(config);
+            base.Initialize();
         }
 
         // Copied from transformers.models.t5.tokenization_t5.T5Tokenizer.get_spm_processor

@@ -21,22 +21,12 @@ namespace Doji.AI.Transformers {
         private Dictionary<string, string> _cache;
         private Regex _pat;
 
-        public GPT2Tokenizer(
-            Vocab vocab,
-            string merges,
-            TokenizerConfig config = null,
-            Side paddingSide = Side.Right,
-            Side truncationSide = Side.Right,
-            List<string> modelInputNames = null,
-            bool cleanUpTokenizationSpaces = true,
-            bool splitSpecialTokens = false) : base(paddingSide, truncationSide, modelInputNames, cleanUpTokenizationSpaces, splitSpecialTokens)
-        {
-            config ??= new TokenizerConfig();
-            config.UnkToken ??= new AddedToken("<|endoftext|>");
-            config.BosToken ??= new AddedToken("<|endoftext|>");
-            config.EosToken ??= new AddedToken("<|endoftext|>");
-            config.AddPrefixSpace = false;
-            config.AddBosToken = AddBosToken = false;
+        public GPT2Tokenizer(Vocab vocab, string merges, TokenizerConfig config = null) : base(config) {
+            Config.UnkToken ??= new AddedToken("<|endoftext|>");
+            Config.BosToken ??= new AddedToken("<|endoftext|>");
+            Config.EosToken ??= new AddedToken("<|endoftext|>");
+            Config.AddPrefixSpace = false;
+            Config.AddBosToken = AddBosToken = false;
 
             Vocab = vocab;
             _byteEncoder = BytesToUnicode();
@@ -64,7 +54,7 @@ namespace Doji.AI.Transformers {
                 @"'s|'t|'re|'ve|'m|'ll|'d| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"
             );
 
-            base.Initialize(config);
+            base.Initialize();
         }
 
         protected override Dictionary<string, int> GetVocab() {

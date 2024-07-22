@@ -70,39 +70,34 @@ namespace Doji.AI.Transformers {
     /// </summary>
     public abstract partial class PreTrainedTokenizerBase {
 
-        public int? ModelMaxLength { get; set; }
-        public Side PaddingSide { get; set; }
-        public Side TruncationSide { get; set; }
+        protected TokenizerConfig Config { get; set; }
 
-        public List<string> ModelInputNames { get; private set; } = new List<string>() { "input_ids", "token_type_ids", "attention_mask" };
-        public bool CleanUpTokenizationSpaces { get; set; }
-        public bool SplitSpecialTokens { get; set; }
-        public HashSet<string> DeprecationWarnings { get; set; }
-        public bool InTargetContextManager { get; set; }
+        public int ModelMaxLength => Config.ModelMaxLength.Value;
+        public Side PaddingSide => Config.PaddingSide.Value;
+        public Side TruncationSide => Config.TruncationSide.Value;
+        public List<string> ModelInputNames => Config.ModelInputNames;
+        public bool CleanUpTokenizationSpaces => Config.CleanUpTokenizationSpaces.Value;
+        public bool SplitSpecialTokens => Config.SplitSpecialTokens.Value;
+        public HashSet<string> DeprecationWarnings { get; private set; }
+        public bool InTargetContextManager { get; private set; }
 
         public abstract bool Fast { get; }
 
-        public PreTrainedTokenizerBase(
-            Side paddingSide = Side.Right,
-            Side truncationSide = Side.Right,
-            List<string> modelInputNames = null,
-            bool cleanUpTokenizationSpaces = true,
-            bool splitSpecialTokens = false)
-        {
-            PaddingSide = paddingSide;
-            TruncationSide = truncationSide;
-            ModelInputNames = modelInputNames ?? ModelInputNames;
-            CleanUpTokenizationSpaces = cleanUpTokenizationSpaces;
-            SplitSpecialTokens = splitSpecialTokens;
+        public PreTrainedTokenizerBase(TokenizerConfig config) {
+            Config = config ?? new TokenizerConfig();
+            // set default if not initialized in config
+            Config.ModelMaxLength ??= int.MaxValue;
+            Config.PaddingSide ??= Side.Right;
+            Config.TruncationSide ??= Side.Right;
+            Config.ModelInputNames ??= new List<string>() { "input_ids", "token_type_ids", "attention_mask" };
+            Config.CleanUpTokenizationSpaces ??= true;
+            Config.SplitSpecialTokens ??= false;
         }
 
-        protected virtual void Initialize(TokenizerConfig config) {
-            ModelMaxLength = config.ModelMaxLength;
-
+        protected virtual void Initialize() {
             DeprecationWarnings = new HashSet<string> { };
             InTargetContextManager = false;
-
-            InitializeSpecialTokensMixin(config);
+            InitializeSpecialTokensMixin();
         }
 
         /// <summary>

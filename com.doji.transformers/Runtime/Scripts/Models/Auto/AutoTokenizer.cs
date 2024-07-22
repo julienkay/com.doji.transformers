@@ -72,7 +72,7 @@ namespace Doji.AI.Transformers {
 
             return config.TokenizerClass switch {
                 "CLIPTokenizer" => new ClipTokenizer(null, null),
-                "LlamaTokenizer" => new LlamaTokenizer(llamaVocabPath),
+                "LlamaTokenizer" => new LlamaTokenizer(llamaVocabPath, config),
                 _ => throw new NotImplementedException($"'{config.TokenizerClass}' not yet implemented."),
             };
 

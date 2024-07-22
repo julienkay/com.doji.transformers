@@ -30,21 +30,11 @@ namespace Doji.AI.Transformers {
         /// <summary>
         /// Initializes a new clip tokenizer.
         /// </summary>
-        public ClipTokenizer(
-            Vocab vocab,
-            string merges,
-            TokenizerConfig config = null,
-            Side paddingSide = Side.Right,
-            Side truncationSide = Side.Right,
-            List<string> modelInputNames = null,
-            bool cleanUpTokenizationSpaces = true,
-            bool splitSpecialTokens = false) : base(paddingSide, truncationSide, modelInputNames, cleanUpTokenizationSpaces, splitSpecialTokens)
-        {
-            config ??= new TokenizerConfig();
-            config.UnkToken ??= new AddedToken("<|endoftext|>");
-            config.BosToken ??= new AddedToken("<|startoftext|>");
-            config.EosToken ??= new AddedToken("<|endoftext|>");
-            config.PadToken ??= new AddedToken("<|endoftext|>");
+        public ClipTokenizer(Vocab vocab, string merges, TokenizerConfig config = null) : base(config) {
+            Config.UnkToken ??= new AddedToken("<|endoftext|>");
+            Config.BosToken ??= new AddedToken("<|startoftext|>");
+            Config.EosToken ??= new AddedToken("<|endoftext|>");
+            Config.PadToken ??= new AddedToken("<|endoftext|>");
 
             // TODO: BasicTokenizer only a fallback, implement ftfy.fix_text instead?
             _nlp = new BasicTokenizer();
@@ -78,7 +68,7 @@ namespace Doji.AI.Transformers {
                 RegexOptions.IgnoreCase
             );
 
-            base.Initialize(config);
+            base.Initialize();
         }
 
         protected override Dictionary<string, int> GetVocab() {

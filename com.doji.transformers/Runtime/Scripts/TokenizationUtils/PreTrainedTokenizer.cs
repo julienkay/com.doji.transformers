@@ -25,14 +25,9 @@ namespace Doji.AI.Transformers {
         protected Dictionary<string, int> AddedTokensEncoder;
         protected Dictionary<int, AddedToken> AddedTokensDecoder;
 
-        public PreTrainedTokenizer(
-            Side paddingSide = Side.Right,
-            Side truncationSide = Side.Right,
-            List<string> modelInputNames = null,
-            bool cleanUpTokenizationSpaces = true,
-            bool splitSpecialTokens = false) : base() { }
+        public PreTrainedTokenizer(TokenizerConfig config) : base(config) { }
 
-        protected override void Initialize(TokenizerConfig config) {
+        protected override void Initialize() {
             _tokensTrie = new Trie();
 
             // init `AddedTokensDecoder` if child class did not
@@ -47,7 +42,7 @@ namespace Doji.AI.Transformers {
             AddedTokensEncoder = AddedTokensDecoder.ToDictionary(x => (string)x.Value, x => x.Key);
 
             // 4 init the parent class
-            base.Initialize(config);
+            base.Initialize();
 
             // 4. If some of the special tokens are not part of the vocab, we add them, at the end.
             // the order of addition is the same as self.SPECIAL_TOKENS_ATTRIBUTES following `tokenizers`
