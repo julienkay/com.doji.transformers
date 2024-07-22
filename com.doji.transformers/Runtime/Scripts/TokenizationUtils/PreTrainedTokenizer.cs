@@ -34,17 +34,17 @@ namespace Doji.AI.Transformers {
             AddedTokensDecoder ??= new Dictionary<int, AddedToken>();
 
             // if a `added_tokens_decoder` is passed, we are loading from a saved tokenizer, we overwrite 
-            /*if (addedTokensDecoder != null) {
-                foreach (var token in addedTokensDecoder) {
+            if (Config.AddedTokensDecoder != null) {
+                foreach (var token in Config.AddedTokensDecoder) {
                     AddedTokensDecoder[token.Key] = token.Value;
                 }
-            }*/
+            }
             AddedTokensEncoder = AddedTokensDecoder.ToDictionary(x => (string)x.Value, x => x.Key);
 
-            // 4 init the parent class
+            // init the parent class
             base.Initialize();
 
-            // 4. If some of the special tokens are not part of the vocab, we add them, at the end.
+            // If some of the special tokens are not part of the vocab, we add them, at the end.
             // the order of addition is the same as self.SPECIAL_TOKENS_ATTRIBUTES following `tokenizers`
             var tokensToAdd = AllSpecialTokensExtended
                 .Where(token => !AddedTokensEncoder.ContainsKey(token))
