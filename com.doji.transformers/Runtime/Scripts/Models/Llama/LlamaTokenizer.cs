@@ -19,6 +19,8 @@ namespace Doji.AI.Transformers {
 
         private SentencePieceBpe _spModel;
 
+        private int UnkTokenLength { get { return _spModel.Encode(UnkToken.Content, out string _).Count; } }
+
         public LlamaTokenizer(string vocabFilePath, TokenizerConfig config = null) : base(config) {
             Config.UnkToken ??= new AddedToken("<unk>");
             Config.BosToken ??= new AddedToken("<s>");
@@ -104,8 +106,8 @@ namespace Doji.AI.Transformers {
                 return ToStringList(tokens);
             }
             tokens = _spModel.Encode(UnkToken + text, out string normalized2);
-            if (tokens.Count >= UnkToken.Content.Length) {
-                return ToStringList(tokens.Skip(UnkToken.Content.Length));
+            if (tokens.Count >= UnkTokenLength) {
+                return ToStringList(tokens.Skip(UnkTokenLength));
             } else {
                 return ToStringList(tokens);
             }
