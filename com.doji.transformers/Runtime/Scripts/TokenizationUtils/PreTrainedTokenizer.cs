@@ -181,7 +181,7 @@ namespace Doji.AI.Transformers {
                 );
             }
 
-            System.Diagnostics.Debug.Assert(args.Text is BatchInput || args.Text is PretokenizedBatchInput);
+            Debug.Assert(args.Text is BatchInput || args.Text is PretokenizedBatchInput);
             var batch = args.Text as IBatchInput;
             bool isPretokenized = args.Text is PretokenizedBatchInput;
 

@@ -318,8 +318,9 @@ namespace Doji.AI.Transformers {
 
             // handle single inputs
             if (encodedInputs is InputEncoding) {
-                System.Diagnostics.Debug.Assert(requiredInput != null);
-                System.Diagnostics.Debug.Assert(requiredInput[0] is not ICollection);
+                Debug.Assert(requiredInput != null);
+                Debug.Assert(requiredInput.Count > 0);
+                Debug.Assert(requiredInput[0] is not ICollection);
 
                 _Pad(encodedInputs,
                     maxLength,
@@ -330,7 +331,7 @@ namespace Doji.AI.Transformers {
                 return;
             }
 
-            System.Diagnostics.Debug.Assert(encodedInputs is BatchEncoding);
+            Debug.Assert(encodedInputs is BatchEncoding);
 
             // handle batch inputs
             int batchSize = requiredInput.Count;
@@ -535,7 +536,7 @@ namespace Doji.AI.Transformers {
             }
 
             if (args.ReturnOverflowingTokens) {
-                System.Diagnostics.Debug.Assert(args.MaxLength.HasValue);
+                Debug.Assert(args.MaxLength.HasValue);
                 encodedInputs["overflowing_tokens"] = overflowingTokens;
                 encodedInputs.NumTruncatedTokens = totalLen - args.MaxLength.Value;
             }
