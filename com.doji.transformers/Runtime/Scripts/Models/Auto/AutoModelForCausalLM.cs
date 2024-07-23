@@ -1,19 +1,21 @@
 using Newtonsoft.Json;
-using System;
 using System.IO;
+using System;
 using UnityEngine;
-using static Doji.AI.Transformers.PreTrainedTokenizerBase;
+using Unity.Sentis;
 
 namespace Doji.AI.Transformers {
 
-    public static class AutoTokenizer {
+    public static class AutoModelForCausalLM {
+
+        public static string CONFIG_FILE = "config.json";
 
 #if UNITY_EDITOR
         public static event Action<string> OnModelRequested = (x) => { };
 #endif
 
-        internal static TokenizerConfig LoadTokenizerConfig(string pretrainedModelNameOrPath) {
-            return LoadFromJson<TokenizerConfig>(pretrainedModelNameOrPath);
+        internal static PretrainedConfig LoadPretrainedConfig(string pretrainedModelNameOrPath) {
+            return LoadFromJson<PretrainedConfig>(pretrainedModelNameOrPath);
         }
 
         /// <summary>
@@ -21,11 +23,11 @@ namespace Doji.AI.Transformers {
         /// either in StreamingAssets or Resources.
         /// </summary>
         internal static T LoadFromJson<T>(string pretrainedModelNameOrPath) {
-            string streamingAssetsPath = Path.Combine(Application.streamingAssetsPath, pretrainedModelNameOrPath, TOKENIZER_CONFIG_FILE);
+            string streamingAssetsPath = Path.Combine(Application.streamingAssetsPath, pretrainedModelNameOrPath, CONFIG_FILE);
             if (File.Exists(streamingAssetsPath)) {
                 return LoadJsonFromFile<T>(streamingAssetsPath);
             }
-            string resourcePath = Path.Combine(pretrainedModelNameOrPath, Path.ChangeExtension(TOKENIZER_CONFIG_FILE, null));
+            string resourcePath = Path.Combine(pretrainedModelNameOrPath, Path.ChangeExtension(CONFIG_FILE, null));
             return LoadJsonFromTextAsset<T>(resourcePath);
         }
 
@@ -61,20 +63,22 @@ namespace Doji.AI.Transformers {
         }
 
         /// <summary>
-        /// Loads the given tokenizer from a pretrained model vocabulary.
+        /// Loads the given pretrained model (with a causal language modeling head).
         /// </summary>
-        public static PreTrainedTokenizerBase FromPretrained(string pretrainedModelNameOrPath) {
+        public static PretrainedModel FromPretrained(string pretrainedModelNameOrPath, BackendType backend = BackendType.GPUCompute) {
 #if UNITY_EDITOR
             OnModelRequested?.Invoke(pretrainedModelNameOrPath);
 #endif
             // use the tokenizer_config file to get the specific tokenizer class.
-            TokenizerConfig config = LoadTokenizerConfig(pretrainedModelNameOrPath);
-            string llamaVocabPath = Path.Combine(Application.streamingAssetsPath, pretrainedModelNameOrPath, "tokenizer.model");
+            PretrainedConfig config = LoadPretrainedConfig(pretrainedModelNameOrPath);
+            if (config.Architectures == null || config.Architectures.Count  == 0) {
+                throw new Exception($"No architecture found in the config for '{pretrainedModelNameOrPath}'.");
+            }
+            string arch = config.Architectures[0];
 
-            return config.TokenizerClass switch {
-                "CLIPTokenizer" => new ClipTokenizer(null, null),
-                "LlamaTokenizer" => new LlamaTokenizer(llamaVocabPath, config),
-                _ => throw new NotImplementedException($"'{config.TokenizerClass}' not yet implemented."),
+            return arch switch {
+                "Phi3ForCausalLM" => Phi3ForCausalLM.FromPretrained(pretrainedModelNameOrPath, backend),
+                _ => throw new NotImplementedException($"'{arch}'architecture not yet implemented."),
             };
         }
     }

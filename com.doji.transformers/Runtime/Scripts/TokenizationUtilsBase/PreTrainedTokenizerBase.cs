@@ -70,6 +70,8 @@ namespace Doji.AI.Transformers {
     /// </summary>
     public abstract partial class PreTrainedTokenizerBase {
 
+        public const string TOKENIZER_CONFIG_FILE = "tokenizer_config.json";
+
         protected TokenizerConfig Config { get; set; }
 
         public int ModelMaxLength => Config.ModelMaxLength.Value;
