@@ -78,9 +78,9 @@ namespace Doji.AI.Transformers {
 
 
         // Copied from transformers.models.t5.tokenization_t5.T5Tokenizer.tokenize
-        public override List<string> Tokenize(string text) {
+        protected override List<string> Tokenize(string text, EncodingParams args) {
             if (Legacy || string.IsNullOrEmpty(text)) {
-                return base.Tokenize(text);
+                return base.Tokenize(text, args);
             }
 
             text = Regex.Replace(text, SPIECE_UNDERLINE, " ");
@@ -88,7 +88,7 @@ namespace Doji.AI.Transformers {
                 text = SPIECE_UNDERLINE + text;
             }
 
-            var tokens = base.Tokenize(text);
+            var tokens = base.Tokenize(text, args);
 
             if (tokens.Count > 1 && tokens[0] == SPIECE_UNDERLINE && AllSpecialTokens.Contains(tokens[1])) {
                 tokens = tokens.Skip(1).ToList();

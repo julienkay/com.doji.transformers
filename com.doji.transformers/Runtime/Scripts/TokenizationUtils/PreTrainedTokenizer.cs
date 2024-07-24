@@ -159,8 +159,8 @@ namespace Doji.AI.Transformers {
                 );
             }
 
-            List<int> firstIds = GetInputIds(args.Text);
-            List<int> secondIds = args.TextPair != null ? GetInputIds(args.TextPair) : null;
+            List<int> firstIds = GetInputIds(args.Text, args);
+            List<int> secondIds = args.TextPair != null ? GetInputIds(args.TextPair, args) : null;
 
             return PrepareForModel(args, firstIds, secondIds);
         }
@@ -187,9 +187,9 @@ namespace Doji.AI.Transformers {
                 if (isPretokenized) {
                     firstIds = ConvertTokensToIds(input as List<string>);
                 } else {
-                    firstIds = ConvertTokensToIds(Tokenize(input as string));
+                    firstIds = ConvertTokensToIds(Tokenize(input as string, args));
                 }
-                List<int> secondIds = args.TextPair != null ? GetInputIdsBatch(args.TextPair) : null;
+                List<int> secondIds = args.TextPair != null ? GetInputIdsBatch(args.TextPair, args) : null;
                 inputIds.Add((firstIds, secondIds));
             }
 
@@ -201,10 +201,10 @@ namespace Doji.AI.Transformers {
         /// Split in words for word-based vocabulary or sub-words for sub-word-based vocabularies
         /// (BPE/SentencePieces/WordPieces). Takes care of added tokens.
         /// </summary>
-        public override List<string> Tokenize(string text) {
+        protected override List<string> Tokenize(string text, EncodingParams args) {
             bool splitSpecialTokens = SplitSpecialTokens;
 
-            text = PrepareForTokenization(text);
+            text = PrepareForTokenization(text, args.IsSplitIntoWords);
 
             // original code passes args dynamically and specifically checks if all have been used
             // t.b.d.: Do we need to do this as well?
@@ -295,10 +295,10 @@ namespace Doji.AI.Transformers {
         /// At this point <paramref name="text"/> is either of type <see cref="SingleInput"/>
         /// or <see cref="PretokenizedSingleInput"/>
         /// </summary>
-        private List<int> GetInputIds(Input text) {
+        private List<int> GetInputIds(Input text, EncodingParams args) {
             List<string> tokens;
             if (text is SingleInput input) {
-                tokens = Tokenize(input.Text);
+                tokens = Tokenize(input.Text, args);
             } else if (text is PretokenizedSingleInput pretokenizedInput) {
                 tokens = pretokenizedInput.PretokenizedText;
             } else {
@@ -312,12 +312,12 @@ namespace Doji.AI.Transformers {
         /// At this point <paramref name="text"/> is either of type <see cref="BatchInput"/>
         /// or <see cref="PretokenizedBatchInput"/>
         /// </summary>
-        private List<int> GetInputIdsBatch(Input text) {
+        private List<int> GetInputIdsBatch(Input text, EncodingParams args) {
             List<string> tokens;
             if (text is BatchInput input) {
                 tokens = new List<string>();
                 foreach (string token in input.Sequence) {
-                    tokens.AddRange(Tokenize(token));
+                    tokens.AddRange(Tokenize(token, args));
                 }
             } else if (text is PretokenizedBatchInput pretokenizedInput) {
                 tokens = new List<string>();
@@ -371,7 +371,7 @@ namespace Doji.AI.Transformers {
             return batchOutputs;
         }
 
-        protected virtual string PrepareForTokenization(string text) {
+        protected virtual string PrepareForTokenization(string text, bool isSplitIntoWords) {
             return text;
         }
 

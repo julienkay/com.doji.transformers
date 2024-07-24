@@ -132,6 +132,7 @@ namespace Doji.AI.Transformers {
             Truncation truncation = Truncation.None,
             int? maxLength = null,
             int stride = 0,
+            bool isSplitIntoWords = false,
             int? padToMultipleOf = null,
             bool? returnTokenTypeIds = null,
             bool? returnAttentionMask = null,
@@ -141,7 +142,7 @@ namespace Doji.AI.Transformers {
             bool returnLength = false)
         {
             return Encode<Input>(text, textPair, textTarget, textPairTarget, addSpecialTokens,
-                padding, truncation, maxLength, stride, padToMultipleOf, returnTokenTypeIds,
+                padding, truncation, maxLength, stride, isSplitIntoWords, padToMultipleOf, returnTokenTypeIds,
                 returnAttentionMask, returnOverflowingTokens, returnSpecialTokensMask,
                 returnOffsetsMapping, returnLength);
         }
@@ -162,6 +163,7 @@ namespace Doji.AI.Transformers {
             Truncation truncation= Truncation.None,
             int? maxLength = null,
             int stride = 0,
+            bool isSplitIntoWords = false,
             int? padToMultipleOf = null,
             bool? returnTokenTypeIds = null,
             bool? returnAttentionMask = null,
@@ -172,7 +174,7 @@ namespace Doji.AI.Transformers {
         {
             EncodingParams args = new EncodingParams(
                 text, textPair, textTarget, textPairTarget, addSpecialTokens, padding,
-                truncation, maxLength, stride, padToMultipleOf, returnTokenTypeIds,
+                truncation, maxLength, stride, isSplitIntoWords, padToMultipleOf, returnTokenTypeIds,
                 returnAttentionMask, returnOverflowingTokens, returnSpecialTokensMask,
                 returnOffsetsMapping, returnLength
             );
@@ -266,8 +268,13 @@ namespace Doji.AI.Transformers {
         /// <summary>
         /// Converts a string into a sequence of tokens, replacing unknown tokens with the `unk_token`.
         /// </summary>
-        public virtual List<string> Tokenize(string text) {
+        protected virtual List<string> Tokenize(string text, EncodingParams args) {
             throw new NotImplementedException($"This tokenizer does not implement {nameof(Tokenize)}");
+        }
+
+        //TODO: provide similar overloads like for the Encode() method, keeping the Params struct internal
+        public List<string> Tokenize(string text) {
+            return Tokenize(text, new EncodingParams(null));
         }
 
         /// <summary>

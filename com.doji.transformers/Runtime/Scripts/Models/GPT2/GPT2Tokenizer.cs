@@ -206,5 +206,12 @@ namespace Doji.AI.Transformers {
                 return encoder.GetValueOrDefault(UnkToken);
             }
         }
+
+        protected override string PrepareForTokenization(string text, bool isSplitIntoWords) {
+            if (isSplitIntoWords || Config.AddPrefixSpace.Value) {
+                text = " " + text;
+            }
+            return text;
+        }
     }
 }
