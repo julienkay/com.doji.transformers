@@ -18,7 +18,7 @@ namespace Doji.AI.Transformers {
         /// The runtime model.
         /// </summary>
         private Model _model;
-        private IWorker _worker;
+        protected IWorker _worker;
 
         public PretrainedModel(Model model, PretrainedConfig config, BackendType backend) : base(config) {
             Backend = backend;

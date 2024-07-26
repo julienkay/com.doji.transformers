@@ -19,7 +19,33 @@ namespace Doji.AI.Transformers {
                 foreach (var innerList in inputIds as List<List<int>>) {
                     flattenedList.AddRange(innerList);
                 }
-                return flattenedList.ToArray();
+                return flattenedList;
+            }
+        }
+
+        public override IEnumerable<int> AttentionMask {
+            get {
+                if (!TryGetValue("attention_mask", out var inputIds)) {
+                    return null;
+                }
+                List<int> flattenedList = new List<int>();
+                foreach (var innerList in inputIds as List<List<int>>) {
+                    flattenedList.AddRange(innerList);
+                }
+                return flattenedList;
+            }
+        }
+
+        public override IEnumerable<int> TokenTypeIds {
+            get {
+                if (!TryGetValue("token_type_ids", out var inputIds)) {
+                    return null;
+                }
+                List<int> flattenedList = new List<int>();
+                foreach (var innerList in inputIds as List<List<int>>) {
+                    flattenedList.AddRange(innerList);
+                }
+                return flattenedList;
             }
         }
 

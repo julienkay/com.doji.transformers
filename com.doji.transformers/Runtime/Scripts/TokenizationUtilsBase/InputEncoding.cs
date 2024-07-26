@@ -13,7 +13,21 @@ namespace Doji.AI.Transformers {
         public override IEnumerable<int> InputIds {
             get {
                 TryGetValue("input_ids", out var inputIds);
-                return inputIds as List<int>;
+                return inputIds as IEnumerable<int>;
+            }
+        }
+
+        public override IEnumerable<int> AttentionMask {
+            get {
+                TryGetValue("attention_mask", out var inputIds);
+                return inputIds as IEnumerable<int>;
+            }
+        }
+
+        public override IEnumerable<int> TokenTypeIds {
+            get {
+                TryGetValue("token_type_ids", out var inputIds);
+                return inputIds as IEnumerable<int>;
             }
         }
     }
