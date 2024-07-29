@@ -195,16 +195,30 @@ namespace Doji.AI.Transformers {
             return bpeTokens;
         }
 
-        /// <summary>
-        /// Converts a token into an id using the vocab.
-        /// </summary>
         protected override int ConvertTokenToId(string token) {
             var encoder = Vocab.Encoder;
-            if (encoder.TryGetValue(token, out int id)) {
-                return id;
-            } else {
-                return encoder.GetValueOrDefault(UnkToken);
+            return encoder.GetValueOrDefault(token, encoder[UnkToken]);
+        }
+
+        protected override string ConvertIdToToken(int index) {
+            return Vocab.Decoder[index];
+        }
+
+        protected override string ConvertTokensToString(List<string> tokens) {
+            string text = string.Join("", tokens);
+
+            List<byte> byteList = new List<byte>();
+            foreach (char c in text) {
+                if (_byteDecoder.ContainsKey(c)) {
+                    byteList.Add((byte)_byteDecoder[c]);
+                } else {
+                    throw new Exception($"Character '{c}' not found in byte decoder.");
+                }
             }
+
+            byte[] byteArray = byteList.ToArray();
+            string decodedText = System.Text.Encoding.UTF8.GetString(byteArray);
+            return decodedText;
         }
 
         protected override string PrepareForTokenization(string text, bool isSplitIntoWords) {

@@ -58,7 +58,7 @@ namespace Doji.AI.Transformers {
             return tokenizer;
         }
 
-        public int VocabSize {
+        protected override int VocabSize {
             get {
                 return _spModel.Vocab.Count;
             }
@@ -127,6 +127,10 @@ namespace Doji.AI.Transformers {
 
         protected override string ConvertIdToToken(int index) {
             return _spModel.MapIdToToken(index);
+        }
+
+        protected override string ConvertTokensToString(List<string> tokens) {
+            throw new System.NotImplementedException();
         }
 
         protected override List<int> BuildInputsWithSpecialTokens(List<int> TokenIds0, List<int> TokenIds1 = null) {

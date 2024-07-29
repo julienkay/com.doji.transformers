@@ -16,7 +16,7 @@ namespace Doji.AI.Transformers {
     /// augmentation methods of the various underlying dictionary structures
     /// (BPE, sentencepiece...).
     /// </summary>
-    public class PreTrainedTokenizer : PreTrainedTokenizerBase {
+    public abstract class PreTrainedTokenizer : PreTrainedTokenizerBase {
 
         public bool? DoLowerCase { get; set; }
         public override bool Fast { get => false; }
@@ -24,6 +24,8 @@ namespace Doji.AI.Transformers {
         private Trie _tokensTrie;
         protected Dictionary<string, int> AddedTokensEncoder;
         protected Dictionary<int, AddedToken> AddedTokensDecoder;
+
+        protected virtual int VocabSize { get => throw new NotImplementedException(); }
 
         public PreTrainedTokenizer(TokenizerConfig config) : base(config) { }
 
@@ -428,9 +430,7 @@ namespace Doji.AI.Transformers {
         /// <summary>
         /// Converts a token (string) in an id using the vocab.
         /// </summary>
-        protected virtual int ConvertTokenToId(string token) {
-            throw new NotImplementedException($"This tokenizer does not implement {nameof(ConvertTokenToId)}");
-        }
+        protected abstract int ConvertTokenToId(string token);
 
         /// <summary>
         /// Converts a single index or a sequence of indices in a token or a sequence of tokens,
@@ -465,8 +465,66 @@ namespace Doji.AI.Transformers {
         /// <summary>
         /// Converts an index (integer) in a token (string) using the vocab.
         /// </summary>
-        protected virtual string ConvertIdToToken(int index) {
-            throw new NotImplementedException($"This tokenizer does not implement {nameof(ConvertIdToToken)}");
+        protected abstract string ConvertIdToToken(int index);
+
+        public override string Decode(
+            List<int> tokenIds,
+            bool skipSpecialTokens = false,
+            bool? cleanUpTokenizationSpaces = null,
+            bool spacesBetweenSpecialTokens = true)
+        {
+            List<string> filteredTokens = ConvertIdsToTokens(tokenIds, skipSpecialTokens);
+            HashSet<string> legacyAddedTokens = new HashSet<string>(AddedTokensEncoder.Keys.Except(AllSpecialTokens));
+
+            foreach (var token in AdditionalSpecialTokens) {
+                if (ConvertTokensToIds(token) >= VocabSize) {
+                    legacyAddedTokens.Add(token);
+                }
+            }
+
+            // To avoid mixing byte-level and unicode for byte-level BPT
+            // we need to build string separately for added tokens and byte-level tokens
+            // cf. https://github.com/huggingface/transformers/issues/1133
+            List<string> subTexts = new List<string>();
+            List<string> currentSubText = new List<string>();
+
+            foreach (var token in filteredTokens) {
+                /*if (skipSpecialTokens && AllSpecialIds.Contains(token)) {
+                    continue;
+                }*/
+
+                if (legacyAddedTokens.Contains(token)) {
+                    if (currentSubText.Count > 0) {
+                        string str = ConvertTokensToString(currentSubText);
+                        if (str.Length > 0) {
+                            subTexts.Add(str);
+                        }
+                        currentSubText.Clear();
+                    }
+                    subTexts.Add(token.ToString());
+                } else {
+                    currentSubText.Add(token);
+                }
+            }
+            if (currentSubText != null) {
+                subTexts.Add(ConvertTokensToString(currentSubText));
+            }
+
+            string text;
+            if (spacesBetweenSpecialTokens) {
+                text = string.Join(" ", subTexts);
+            } else {
+                text = string.Join("", subTexts);
+            }
+
+            cleanUpTokenizationSpaces ??= CleanUpTokenizationSpaces;
+
+            if (cleanUpTokenizationSpaces.Value) {
+                string cleanText = CleanUpTokenization(text);
+                return cleanText;
+            } else {
+                return text;
+            }
         }
     }
 }

@@ -1,6 +1,7 @@
 using NUnit.Framework;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace Doji.AI.Transformers.Editor.Tests {
 
@@ -26,6 +27,7 @@ namespace Doji.AI.Transformers.Editor.Tests {
         }
 
         private static List<string> BatchInput = new List<string>() { "lower newer", "lone loner", "new low never hover" };
+        private static List<string> RoundtripInput = new List<string>() { "lower newer" };
 
         public static IEnumerable EncodeBatchTestData {
             get {
@@ -114,6 +116,13 @@ namespace Doji.AI.Transformers.Editor.Tests {
             BatchEncoding encoding = t.Encode<BatchInput>(prompts, padding: padding, maxLength: 77) as BatchEncoding;
             var encodedIds = encoding["input_ids"] as List<List<int>>;
             return encodedIds;
+        }
+
+        [Test]
+        public void TestEncodeRoundtrip([ValueSource(nameof(RoundtripInput))] string prompt) {
+            ClipTokenizer t = CreateTokenizer();
+            var result = t.Decode(t.Encode(prompt).InputIds.ToList(), skipSpecialTokens: true);
+            Assert.That(result, Is.EqualTo(prompt));
         }
 
         /// <summary>

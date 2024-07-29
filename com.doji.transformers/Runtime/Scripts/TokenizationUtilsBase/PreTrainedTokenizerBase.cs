@@ -2,6 +2,7 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
+using Unity.Sentis.Layers;
 
 namespace Doji.AI.Transformers {
 
@@ -728,6 +729,49 @@ namespace Doji.AI.Transformers {
         /// </summary>
         protected virtual Dictionary<string, int> GetVocab() {
             throw new NotImplementedException($"This tokenizer does not implement {nameof(GetVocab)}");
+        }
+
+        /// <summary>
+        /// Converts a sequence of tokens (string) in a single string.
+        /// </summary>
+        protected abstract string ConvertTokensToString(List<string> tokens);
+
+        private void BatchDecode() {
+
+        }
+
+        /// <summary>
+        /// Converts a sequence of ids in a string, using the tokenizer and vocabulary
+        /// with options to remove special tokens and clean up tokenization spaces.
+        /// Similar to doing <see cref="ConvertTokensToString(List{string})"/>.
+        /// </summary>
+        /// <param name="tokenIds">  List of tokenized input ids. Can be obtained using the <see cref="Encode"/> method.</param>
+        /// <param name="skipSpecialTokens">Whether or not to remove special tokens in the decoding.</param>
+        /// <param name="cleanUpTokenizationSpaces"> Whether or not to clean up the tokenization spaces. If `None`, will default to <see cref="CleanUpTokenizationSpaces"/>.</param>
+        /// <returns>The decoded sentence.</returns>
+        public abstract string Decode(
+            List<int> tokenIds,
+            bool skipSpecialTokens = false,
+            bool? cleanUpTokenizationSpaces = null,
+            bool spacesBetweenSpecialTokens = true);
+
+        /// <summary>
+        /// Clean up a list of simple English tokenization artifacts like spaces before punctuations and abbreviated forms.
+        /// </summary>
+        /// <param name="outString">The text to clean up.</param>
+        /// <returns>The cleaned-up string.</returns>
+        protected static string CleanUpTokenization(string outString) {
+            return outString
+                .Replace(" .", ".")
+                .Replace(" ?", "?")
+                .Replace(" !", "!")
+                .Replace(" ,", ",")
+                .Replace(" ' ", "'")
+                .Replace(" n't", "n't")
+                .Replace(" 'm", "'m")
+                .Replace(" 's", "'s")
+                .Replace(" 've", "'ve")
+                .Replace(" 're", "'re");
         }
     }
 }
