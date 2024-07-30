@@ -5,9 +5,13 @@ using UnityEngine;
 
 namespace Doji.AI.Transformers {
 
-    public abstract class PretrainedModel : Configurable<PretrainedConfig>, IDisposable {
+    public abstract partial class PretrainedModel : Configurable<PretrainedConfig>, IDisposable {
 
         public const string MODEL_NAME = "model";
+
+        public abstract bool AcceptsAttentionMask { get; }
+
+        public virtual string MainInputName { get; } = "input_ids";
 
         /// <summary>
         /// Which <see cref="BackendType"/> to run the model with.

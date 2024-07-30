@@ -5,6 +5,8 @@ namespace Doji.AI.Transformers {
 
     public class Phi3ForCausalLM : PretrainedModel {
 
+        public override bool AcceptsAttentionMask => true;
+
         private Dictionary<string, Tensor> _inputs = new Dictionary<string, Tensor>();
 
         public Phi3ForCausalLM(Model model, PretrainedConfig config, BackendType backend = BackendType.GPUCompute) : base(model, config, backend) { }
