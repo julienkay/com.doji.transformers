@@ -2,7 +2,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
-using Unity.Sentis.Layers;
 
 namespace Doji.AI.Transformers {
 
@@ -736,8 +735,8 @@ namespace Doji.AI.Transformers {
         /// </summary>
         protected abstract string ConvertTokensToString(List<string> tokens);
 
-        private void BatchDecode() {
-
+        public virtual List<string> BatchDecode() {
+            throw new NotImplementedException();
         }
 
         /// <summary>

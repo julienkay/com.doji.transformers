@@ -3,6 +3,7 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.ML.Tokenizers;
+using Unity.Sentis;
 
 namespace Doji.AI.Transformers {
 
@@ -130,7 +131,36 @@ namespace Doji.AI.Transformers {
         }
 
         protected override string ConvertTokensToString(List<string> tokens) {
-            throw new System.NotImplementedException();
+            if (tokens[0].StartsWith(SPIECE_UNDERLINE) && AddPrefixSpace) {
+                tokens[0] = tokens[0][1..];
+            }
+
+            List<int> currentSubTokens = new List<int>();
+            string outString = "";
+            bool prevIsSpecial = false;
+
+            for (int i = 0; i < tokens.Count; i++) {
+                string token = tokens[i];
+
+                // make sure that special tokens are not decoded using sentencepiece model
+                if (AllSpecialTokens.Contains(token)) {
+                    if (!prevIsSpecial && i != 0 && Legacy) {
+                        outString += " ";
+                    }
+                    outString += _spModel.Decode(currentSubTokens) + token;
+                    prevIsSpecial = true;
+                    currentSubTokens.Clear();
+                } else {
+                    if (prevIsSpecial && i == 1 && AddPrefixSpace && !token.StartsWith(SPIECE_UNDERLINE)) {
+                        outString += " ";
+                    }
+                    currentSubTokens.Add(_spModel.MapTokenToId(token).Value);
+                    prevIsSpecial = false;
+                }
+            }
+
+            outString += _spModel.Decode(currentSubTokens);
+            return outString;
         }
 
         protected override List<int> BuildInputsWithSpecialTokens(List<int> TokenIds0, List<int> TokenIds1 = null) {
