@@ -119,7 +119,7 @@ namespace Doji.AI.Transformers.Editor.Tests {
         }
 
         [Test]
-        public void TestEncodeRoundtrip([ValueSource(nameof(RoundtripInput))] string prompt) {
+        public void TestRoundtrip([ValueSource(nameof(RoundtripInput))] string prompt) {
             ClipTokenizer t = CreateTokenizer();
             var result = t.Decode(t.Encode(prompt).InputIds.ToList(), skipSpecialTokens: true);
             Assert.That(result, Is.EqualTo(prompt));
@@ -128,7 +128,6 @@ namespace Doji.AI.Transformers.Editor.Tests {
         /// <summary>
         /// Creates a basic ClipTokenizer with a reduced vocabulary.
         /// </summary>
-        /// <returns></returns>
         private ClipTokenizer CreateTokenizer() {
             Vocab vocab = new Vocab(VocabTokens);
             TokenizerConfig config = new TokenizerConfig();

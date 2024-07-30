@@ -3,7 +3,6 @@ using System.IO;
 using System.Linq;
 using System.Text.RegularExpressions;
 using Microsoft.ML.Tokenizers;
-using Unity.Sentis;
 
 namespace Doji.AI.Transformers {
 
@@ -55,7 +54,7 @@ namespace Doji.AI.Transformers {
             }
             
             var tokenizer = Sentencepiece.SentencepieceUtils.LoadModifiedProto(VocabFilePath, AddBosToken, AddEosToken, addDummyPrefix: false);
-            UnityEngine.Debug.Log(tokenizer.AddDummyPrefix);
+            Debug.Assert(tokenizer.AddDummyPrefix == false);
             return tokenizer;
         }
 
