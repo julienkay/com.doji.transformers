@@ -1,16 +1,11 @@
-using Google.Protobuf.WellKnownTypes;
 using System;
-using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
-using System.Text;
 using Unity.Sentis;
-using Unity.Sentis.Layers;
-using UnityEngine;
-using UnityEngine.SocialPlatforms;
 
 namespace Doji.AI.Transformers {
+
     public abstract partial class PretrainedModel {
 
         /// <summary>
@@ -19,7 +14,8 @@ namespace Doji.AI.Transformers {
         public void Generate(
             TensorInt inputs,
             GenerationConfig generationConfig,
-            Dictionary<string, object> kwargs = null) {
+            Dictionary<string, object> kwargs = null)
+        {
             //ValidateModelClass();
             var modelKwargs = kwargs ?? new Dictionary<string, object>();
             //ValidateModelKwargs();
@@ -33,13 +29,13 @@ namespace Doji.AI.Transformers {
             bool kwargsHasAttentionMask = modelKwargs.ContainsKey("attention_mask");
 
             // define model inputs
-
+            PrepareModelInputs(ref inputs, out string modelInputName, generationConfig.BosTokenId.Value, ref modelKwargs);
         }
 
         /// <summary>
         /// This function extracts the model-specific `inputs` for generation.
         /// </summary>
-        private void PrepareModelInputs(ref Tensor inputs, out string inputName, int bosTokenId, ref Dictionary<string, object> modelKwargs) {
+        private void PrepareModelInputs(ref TensorInt inputs, out string inputName, int bosTokenId, ref Dictionary<string, object> modelKwargs) {
             // retrieve all kwargs that are non-None or non-model input related.
             // some encoder-decoder models have different names for model and encoder
             if (Config.IsEncoderDecoder && HasEncoder /* && Encoder.MainInputName != MainInputName*/) {
@@ -55,7 +51,7 @@ namespace Doji.AI.Transformers {
                 throw new ArgumentException($"`inputs`: {inputs}` were passed alongside {inputName} which is not allowed. " +
                 $"Make sure to either pass {inputs} or {inputName}=...");
             } else if (inputsKwarg != null) {
-                inputs = inputsKwarg as Tensor;
+                inputs = inputsKwarg as TensorInt;
             }
 
             // In the presence of `inputs_embeds` for text models:
@@ -85,7 +81,7 @@ namespace Doji.AI.Transformers {
                     }
                 }
 
-                inputs = modelKwargs["inputs_embeds"] as Tensor;
+                inputs = modelKwargs["inputs_embeds"] as TensorInt;
                 inputName = "inputs_embeds";
             }
 
@@ -95,11 +91,12 @@ namespace Doji.AI.Transformers {
         }
 
         private TValue Pop<TKey, TValue>(Dictionary<TKey, TValue> d, TKey key, TValue defaultVal = default) {
-            TValue val = defaultVal;
-            if (d.TryGetValue(key, out val)) {
+            if (d.TryGetValue(key, out TValue val)) {
                 d.Remove(key);
+                return val;
+            } else {
+                return defaultVal;
             }
-            return val;
         }
 
         private bool HasInputsEmbedsForwarding() {
@@ -108,38 +105,45 @@ namespace Doji.AI.Transformers {
             return parameters.Any(p => p.Name == "inputs_embeds");
         }
 
-
         /// <summary>
         /// Initializes input ids for generation, if necessary.
         /// </summary>
-        private void MaybeInitializeInputIdsForGeneration(ref Tensor inputs, int? bosTokenId, Dictionary<string, object> modelKwargs) {
+        private void MaybeInitializeInputIdsForGeneration(ref TensorInt inputs, int? bosTokenId, Dictionary<string, object> modelKwargs) {
             if (inputs != null) {
                 return;
             }
 
-            modelKwargs.TryGetValue<string, Tensor>("encoder_outputs", out Tensor encoder_outputs);
+            modelKwargs.TryGetValue("encoder_outputs", out object encoder_outputs);
             if (Config.IsEncoderDecoder && encoder_outputs != null) {
                 // make dummy input_ids with value -100, as a sanity check ensuring that they won't be used for encoding
-                var shape = encoder_outputs.last_hidden_state.size()[:-1]
-                torch.ones(shape, dtype = torch.long, device = self.device) * -100
+                //var shape = encoder_outputs.last_hidden_state.size()[:-1]
+                //torch.ones(shape, dtype = torch.long, device = self.device) * -100
             }
 
-        // If there is some tensor in `model_kwargs`, we can infer the batch size from it. This is helpful with
-        // soft-prompting or in multimodal implementations built on top of decoder-only language models.
-        batch_size = 1
-        for value in model_kwargs.values():
-            if isinstance(value, torch.Tensor):
-                batch_size = value.shape[0]
-                break
+            // If there is some tensor in `model_kwargs`, we can infer the batch size from it. This is helpful with
+            // soft-prompting or in multimodal implementations built on top of decoder-only language models.
+            int batch_size = 1;
+            foreach (var kvp in modelKwargs) {
+                if (kvp.Value is Tensor) {
+                    batch_size = (kvp.Value as Tensor).shape[0];
+                    break;
+                }
+            }
 
-        if "inputs_embeds" in model_kwargs:
-            return torch.ones((batch_size, 0), dtype = torch.long, device = self.device)
+            if (modelKwargs.ContainsKey("inputs_embeds")) {
+                inputs = TensorUtils.Ones(new TensorShape(batch_size, 0), DataType.Int) as TensorInt;
+            }
 
-        if bos_token_id is None:
-            raise ValueError("`bos_token_id` has to be defined when no `input_ids` are provided.")
+            if (bosTokenId == null) {
+                throw new ArgumentException("`bos_token_id` has to be defined when no `input_ids` are provided.");
+            }
 
-        return torch.ones((batch_size, 1), dtype = torch.long, device = self.device) * bos_token_id
+            using TensorInt bos = new TensorInt(bosTokenId.Value);
+            using TensorInt ones = TensorUtils.Ones(new TensorShape(batch_size, 1), DataType.Int) as TensorInt;
+            TensorInt mul = TensorInt.AllocNoData(ones.shape);
+
+            _ops.Mul(ones, bos, mul);
+            inputs = mul;
         }
-
     }
 }
