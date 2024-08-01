@@ -5,7 +5,8 @@ namespace Doji.AI.Transformers {
 
     public class Phi3ForCausalLM : PretrainedModel {
 
-        public override bool AcceptsAttentionMask => true;
+        protected override bool AcceptsAttentionMask => true;
+        protected override bool HasEncoder => false;
 
         private Dictionary<string, Tensor> _inputs = new Dictionary<string, Tensor>();
 

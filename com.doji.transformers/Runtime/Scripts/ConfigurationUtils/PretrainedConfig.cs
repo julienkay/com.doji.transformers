@@ -5,7 +5,7 @@ namespace Doji.AI.Transformers {
 
     /// <summary>
     /// Base class for all configuration classes. Handles a few parameters common to all models' configurations
-    /// Methods for loading configurations.
+    /// as well as methods for loading configurations.
     /// </summary>
     public class PretrainedConfig {
 
@@ -14,5 +14,12 @@ namespace Doji.AI.Transformers {
 
         [JsonProperty("architectures")]
         public List<string> Architectures { get; set; }
+
+        [JsonProperty("is_encoder_decoder")]
+        public bool IsEncoderDecoder { get; set; }
+
+        public PretrainedConfig() {
+            IsEncoderDecoder = false;
+        }
     }
 }

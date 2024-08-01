@@ -8,10 +8,14 @@ namespace Doji.AI.Transformers {
     public abstract partial class PretrainedModel : Configurable<PretrainedConfig>, IDisposable {
 
         public const string MODEL_NAME = "model";
-
-        public abstract bool AcceptsAttentionMask { get; }
-
         public virtual string MainInputName { get; } = "input_ids";
+
+
+        /* In original code these are retrieved by inspecting attributes/arguments
+         t.b.d. if there's a good way to implement this generically without resorting to Reflection */
+        protected abstract bool AcceptsAttentionMask { get; }
+        protected abstract bool HasEncoder { get; }
+        protected virtual object Encoder { get; } = null;
 
         /// <summary>
         /// Which <see cref="BackendType"/> to run the model with.
