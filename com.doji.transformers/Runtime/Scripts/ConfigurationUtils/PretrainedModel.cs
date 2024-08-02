@@ -87,7 +87,7 @@ namespace Doji.AI.Transformers {
         protected static C FromPretrained<C>(string pretrainedModelNameOrPath, BackendType backend) where C : PretrainedModel {
             string configFile = Path.Combine(pretrainedModelNameOrPath, CONFIG_NAME);
             var config = LoadConfig(configFile) ?? throw new FileNotFoundException($"File '{configFile}' not found for: '{typeof(C).Name}'");
-            var model = LoadModel(pretrainedModelNameOrPath) ?? throw new FileNotFoundException($"No model file for '{pretrainedModelNameOrPath}' not found for: '{typeof(C).Name}'");
+            var model = LoadModel(pretrainedModelNameOrPath) ?? throw new FileNotFoundException($"Model file for '{pretrainedModelNameOrPath}' not found for: '{typeof(C).Name}'");
             return FromConfig<C>(config, model, backend);
         }
     }

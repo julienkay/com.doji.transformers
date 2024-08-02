@@ -61,6 +61,32 @@ namespace Doji.AI.Transformers {
         }
 
         /// <summary>
+        /// Returns a path for the tokenizer.model file in either StreamingAssets or Resources.
+        /// Note that loading from the Resource path returned here will not work at Runtime,
+        /// since arbitrary binary files can't be loaded from Resources.
+        /// </summary>
+        private static string GetTokenizerModelPath(string pretrainedModelNameOrPath) {
+            string streamingAssetsPath = Path.Combine(Application.streamingAssetsPath, pretrainedModelNameOrPath, "tokenizer.model");
+            if (File.Exists(streamingAssetsPath)) {
+                return streamingAssetsPath;
+            }
+            string configResourcePath = Path.Combine(pretrainedModelNameOrPath, Path.ChangeExtension(TOKENIZER_CONFIG_FILE, null));
+            var config = Resources.Load<TextAsset>(configResourcePath);
+            if (config == null) {
+                throw new FileNotFoundException($"No tokenizer model files found for '{pretrainedModelNameOrPath}'");
+            }
+            string resourcePath = UnityEditor.AssetDatabase.GetAssetPath(config);
+            resourcePath = ReplaceFileName(resourcePath, "tokenizer.model");
+            return resourcePath;
+        }
+
+        private static string ReplaceFileName(string originalFilePath, string newFileName) {
+            string directory = Path.GetDirectoryName(originalFilePath);
+            string newFilePath = Path.Combine(directory, newFileName);
+            return newFilePath;
+        }
+
+        /// <summary>
         /// Loads the given tokenizer from a pretrained model vocabulary.
         /// </summary>
         public static PreTrainedTokenizerBase FromPretrained(string pretrainedModelNameOrPath) {
@@ -69,13 +95,16 @@ namespace Doji.AI.Transformers {
 #endif
             // use the tokenizer_config file to get the specific tokenizer class.
             TokenizerConfig config = LoadTokenizerConfig(pretrainedModelNameOrPath);
-            string llamaVocabPath = Path.Combine(Application.streamingAssetsPath, pretrainedModelNameOrPath, "tokenizer.model");
 
-            return config.TokenizerClass switch {
-                "CLIPTokenizer" => new ClipTokenizer(null, null),
-                "LlamaTokenizer" => new LlamaTokenizer(llamaVocabPath, config),
-                _ => throw new NotImplementedException($"'{config.TokenizerClass}' not yet implemented."),
-            };
+            switch (config.TokenizerClass) {
+                case "CLIPTokenizer":
+                    return new ClipTokenizer(null, null);
+                case "LlamaTokenizer":
+                    string llamaVocabPath = GetTokenizerModelPath(pretrainedModelNameOrPath);
+                    return new LlamaTokenizer(llamaVocabPath, config);
+                default:
+                    throw new NotImplementedException($"'{config.TokenizerClass}' not yet implemented.");
+            }
         }
     }
 }

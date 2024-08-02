@@ -18,7 +18,7 @@ namespace Doji.AI.Transformers {
         }
 
         public static string ResourcePathForModel(this string subPath, string modelFileName) {
-            return Path.Combine(subPath, $"{modelFileName}.onnx");
+            return Path.Combine(subPath, $"{modelFileName}");
         }
     }
 }
