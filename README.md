@@ -9,11 +9,33 @@ A Unity package to run pretrained transformer models with Unity Sentis
 
 ## About
 
-This package is meant to be used together with the [com.doji.diffusers] package to run Stable Diffusion models in Unity.
+This is essentially a C# port of Hugging Face’s [transformers] library.
 
-It is essentially a C# port of Hugging Face’s [transformers] library. As of today, the only implementations available are:
-- a CLIPTokenizer
-- tokenizer base classes
+There are two use cases for this package right now:
+- It's used by the [com.doji.diffusers] package to run Stable Diffusion models in Unity (most SD models use a ClipTokenizer for prompting, modern pipelines require additional ones like T5Tokenizer)
+- To run small LLMs in Unity (WIP)
+
+## Roadmap:
+
+Tokenizers
+- [x] CLIPTokenizer
+- [x] LLamaTokenizer
+- [x] GPT2Tokenizer
+- [ ] T5Tokenizer
+
+LLMs
+- [ ] Phi-3
+
+The intention is to provide a similar API like Hugging Face's transformers library, so usage in Unity will look something like this:
+
+```
+var tokenizer = AutoTokenizer.FromPretrained("julienkay/Phi-3-mini-4k-instruct_no_cache_uint8");
+var model = Phi3ForCausalLM.FromPretrained("julienkay/Phi-3-mini-4k-instruct_no_cache_uint8");
+
+var inputs = tokenizer.Encode("<input-prompt>");
+var outputs = model.Generate(inputs);
+var predictedText = tokenizer.Decode(outputs);
+```
 
 [OpenUPM]: https://openupm.com/packages/com.doji.transformers
 [Documentation (coming soon)]: https://github.com/julienkay/com.doji.transformers
