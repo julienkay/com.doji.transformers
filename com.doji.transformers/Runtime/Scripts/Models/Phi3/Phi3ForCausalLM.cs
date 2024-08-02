@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Unity.Sentis;
 
@@ -26,5 +27,32 @@ namespace Doji.AI.Transformers {
             _worker.Execute(_inputs);
             return _worker.PeekOutput("logits") as TensorFloat;
         }
+
+        public TensorFloat ExecuteLayerByLayer(TensorInt inputIds, TensorInt attentionMask, TensorInt positionIds) {
+            _inputs["input_ids"] = inputIds;
+            _inputs["attention_mask"] = attentionMask;
+            _inputs["position_ids"] = positionIds;
+
+            var schedule = _worker.ExecuteLayerByLayer(_inputs);
+            int i = 0;
+            bool loop = true;
+            while (loop) {
+                if (i == 32) {
+                    ;
+                }
+                try {
+                    loop = schedule.MoveNext();
+                } catch (Exception e) {
+                    UnityEngine.Debug.LogError(e);
+                    UnityEngine.Debug.LogError(i);
+
+                    break;
+                }
+                i++;
+            }
+
+            return _worker.PeekOutput("logits") as TensorFloat;
+        }
+
     }
 }
