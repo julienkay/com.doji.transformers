@@ -1,5 +1,6 @@
 using Newtonsoft.Json;
 using System.Collections.Generic;
+using Unity.Sentis;
 
 namespace Doji.AI.Transformers {
 
@@ -152,7 +153,7 @@ namespace Doji.AI.Transformers {
         public bool ReturnDictInGenerate { get; set; }
 
 
-        /* pecial tokens that can be used at generation time */
+        /* special tokens that can be used at generation time */
 
         [JsonProperty("bos_token_id")]
         public int? BosTokenId { get; set; }
@@ -164,6 +165,11 @@ namespace Doji.AI.Transformers {
         public int? PadTokenId { get; set; }
 
 
+        /* Generation parameters exclusive to encoder-decoder models */
+        [JsonProperty("decoder_start_token_id")]
+        public int[] DecoderStartTokenId { get; set; }
+
+
         /* remaining attributes */
 
         [JsonProperty("_from_model_config")]
@@ -172,6 +178,15 @@ namespace Doji.AI.Transformers {
         [JsonProperty("transformers_version")]
         public string TransformersVersion { get; set; }
 
+
+        [JsonIgnore]
+        public Tensor BosTokenTensor { get; set; }
+        [JsonIgnore]
+        public Tensor EosTokenTensor { get; set; }
+        [JsonIgnore]
+        public Tensor PadTokenTensor { get; set; }
+        [JsonIgnore]
+        public Tensor DecoderStartTokenTensor { get; set; }
 
         public enum StoppingCondition { True, False, Never }
 

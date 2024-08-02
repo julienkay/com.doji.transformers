@@ -30,6 +30,10 @@ namespace Doji.AI.Transformers {
 
             // define model inputs
             PrepareModelInputs(ref inputs, out string modelInputName, generationConfig.BosTokenId.Value, ref modelKwargs);
+            TensorInt inputsTensor = inputs;
+            int batchSize = inputsTensor.shape[0];
+
+            PrepareSpecialTokens(generationConfig, kwargsHasAttentionMask);
         }
 
         /// <summary>
@@ -117,7 +121,7 @@ namespace Doji.AI.Transformers {
             if (Config.IsEncoderDecoder && encoder_outputs != null) {
                 // make dummy input_ids with value -100, as a sanity check ensuring that they won't be used for encoding
                 //var shape = encoder_outputs.last_hidden_state.size()[:-1]
-                //torch.ones(shape, dtype = torch.long, device = self.device) * -100
+                //torch.ones(shape, dtype = torch.long = self.device) * -100
             }
 
             // If there is some tensor in `model_kwargs`, we can infer the batch size from it. This is helpful with
@@ -144,6 +148,68 @@ namespace Doji.AI.Transformers {
 
             _ops.Mul(ones, bos, mul);
             inputs = mul;
+        }
+
+        /// <summary>
+        /// Prepares the special tokens for generation, overwriting the generation config with their processed versions converted to tensor.
+        /// </summary>
+        public void PrepareSpecialTokens(GenerationConfig generationConfig, bool? kwargsHasAttentionMask = null) {
+            Tensor bos_token_tensor = _tensor_or_none(generationConfig.BosTokenId);
+            Tensor eos_token_tensor = _tensor_or_none(generationConfig.EosTokenId);
+            Tensor pad_token_tensor = _tensor_or_none(generationConfig.PadTokenId);
+            Tensor decoder_start_token_tensor = _tensor_or_none(generationConfig.DecoderStartTokenId);
+
+            if (Config.IsEncoderDecoder) {
+                decoder_start_token_tensor = decoder_start_token_tensor ?? bos_token_tensor;
+            }
+
+            if (eos_token_tensor != null && eos_token_tensor.shape.rank == 0) {
+                eos_token_tensor.Reshape(eos_token_tensor.shape.Unsqueeze(0));
+            }
+
+            if (pad_token_tensor == null && eos_token_tensor != null) {
+                if (kwargsHasAttentionMask == false) {
+                    Log.Warning("The attention mask and the pad token id were not set. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.");
+                }
+                //pad_token_tensor = eos_token_tensor[0];
+                Log.Warning($"Setting `pad_token_id` to `eos_token_id`:{pad_token_tensor} for open-end generation.");
+                throw new NotImplementedException();
+            }
+
+            if (Config.IsEncoderDecoder && decoder_start_token_tensor == null) {
+                throw new ArgumentException("`decoder_start_token_id` or `bos_token_id` has to be defined for encoder-decoder generation.");
+            }
+
+            if (eos_token_tensor != null && generationConfig.EosTokenId.Contains(generationConfig.PadTokenId.Value)) {
+                if (kwargsHasAttentionMask == false) {
+                    Log.Warning("The attention mask is not set and cannot be inferred from input because pad token is same as eos token. As a consequence, you may observe unexpected behavior. Please pass your input's `attention_mask` to obtain reliable results.");
+                }
+            }
+
+            if (eos_token_tensor != null && generationConfig.EosTokenId.Any(eosToken => eosToken < 0)) {
+                Log.Warning($"`eos_token_id` should consist of positive integers, but is {eos_token_tensor}. Your generation will not stop until the maximum length is reached. Depending on other flags, it may even crash.");
+            }
+
+            generationConfig.BosTokenTensor = bos_token_tensor;
+            generationConfig.EosTokenTensor = eos_token_tensor;
+            generationConfig.PadTokenTensor = pad_token_tensor;
+            generationConfig.DecoderStartTokenTensor = decoder_start_token_tensor;
+        }
+
+        private Tensor _tensor_or_none(int? token) {
+            if (token == null) {
+                return null;
+            }
+
+            return new TensorInt(new TensorShape(1), new int[] { token.Value });
+        }
+
+        private Tensor _tensor_or_none(int[] token) {
+            if (token == null) {
+                return null;
+            }
+
+            return new TensorInt(new TensorShape(token.Length), token);
         }
     }
 }

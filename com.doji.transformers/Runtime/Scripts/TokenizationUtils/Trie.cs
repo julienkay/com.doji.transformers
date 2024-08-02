@@ -147,7 +147,7 @@ namespace Doji.AI.Transformers {
 
             foreach (int end in offsets) {
                 if (start > end) {
-                    UnityEngine.Debug.Log("There was a bug in Trie algorithm in tokenization. Attempting to recover. Please report it anyway.");
+                    Log.Error("There was a bug in Trie algorithm in tokenization. Attempting to recover. Please report it anyway.");
                     continue;
                 } else if (start == end) {
                     // This might happen if there's a match at index 0
