@@ -30,14 +30,12 @@ public class TestPhi3 : MonoBehaviour {
             
             if (input_ids.Length >= SEQUENCE_LENGTH - 1) break;
             
-            using TensorInt input_tensor = new TensorInt(new TensorShape(input_ids.Length), input_ids);
-            using TensorInt attention_mask_tensor = new TensorInt(new TensorShape(attention_mask.Length), attention_mask);
-            using TensorInt position_ids_tensor = new TensorInt(new TensorShape(input_ids.Length), Enumerable.Range(0, input_ids.Length).ToArray());//??
+            using TensorInt input_tensor = new TensorInt(new TensorShape(1, input_ids.Length), input_ids);
+            using TensorInt attention_mask_tensor = new TensorInt(new TensorShape(1, attention_mask.Length), attention_mask);
+            using TensorInt position_ids_tensor = new TensorInt(new TensorShape(1, input_ids.Length), Enumerable.Range(0, input_ids.Length).ToArray());//??
             var predictions = _model.Execute(input_tensor, attention_mask_tensor, position_ids_tensor);
             int[] nextToken = SampleNext(predictions);
-            Debug.Log(nextToken);
-            //sample += ' ' + _tokenizer.Decode(nextToken.ToList());
-            break;
+            sample += ' ' + _tokenizer.Decode(nextToken.ToList());
         }
         Debug.Log(sample);
     }
@@ -49,7 +47,6 @@ public class TestPhi3 : MonoBehaviour {
         using TensorInt next_token = TensorInt.AllocNoData(probabilities.shape.Reduce(-1, false));
         _backend.ArgMax(probabilities, next_token, -1, false);
         using TensorInt pred = next_token.ReadbackAndClone();
-        Debug.Log(pred.count);
         return pred.ToReadOnlyArray();
     }
 
