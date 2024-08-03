@@ -1,3 +1,4 @@
+using static Doji.AI.Transformers.TensorUtils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -7,6 +8,9 @@ using Unity.Sentis;
 namespace Doji.AI.Transformers {
 
     public abstract partial class PretrainedModel {
+        protected virtual void PrepareInputsForGeneration() {
+            throw new NotImplementedException("A model class needs to define a `prepare_inputs_for_generation` method in order to use `.generate()`.");
+        }
 
         /// <summary>
         /// Generates sequences of token ids for models with a language modeling head.
@@ -34,6 +38,31 @@ namespace Doji.AI.Transformers {
             int batchSize = inputsTensor.shape[0];
 
             PrepareSpecialTokens(generationConfig, kwargsHasAttentionMask);
+
+            // decoder-only models must use left-padding for batched generation.
+            /*if (Config.IsEncoderDecoder) {
+                // If `input_ids` was given, check if the last id in any sequence is `pad_token_id`
+                // Note: If using, `inputs_embeds` this check does not work, because we want to be more hands-off.
+                if (generationConfig.PadTokenTensor != null && batchSize > 1 && inputsTensor.shape.length == 2
+                && torch.sum(inputsTensor[:, -1] == generationConfig.PadTokenTensor) > 0)
+                {
+                    Log.Warning("A decoder-only architecture is being used, but right-padding was detected! For correct " +
+                        "generation results, please set `padding_side='left'` when initializing the tokenizer.");
+                }
+            }*/
+
+            // 4. Define other model kwargs
+            // decoder-only models with inputs_embeds forwarding must use caching (otherwise we can't detect whether we are
+            // generating the first new token or not, and we only want to use the embeddings for the first new token)
+            if (!Config.IsEncoderDecoder && modelInputName == "inputs_embeds") {
+                modelKwargs["use_cache"] = true;
+            } else {
+                modelKwargs["use_cache"] = generationConfig.UseCache;
+            }
+
+            if (!kwargsHasAttentionMask && requireAttentionMask && acceptsAttentionMask) {
+                modelKwargs["attention_mask"] = PrepareAttentionMaskForGeneration(inputsTensor, generationConfig.PadTokenTensor);
+            }
         }
 
         /// <summary>
@@ -104,7 +133,7 @@ namespace Doji.AI.Transformers {
         }
 
         private bool HasInputsEmbedsForwarding() {
-            var method = this.GetType().GetMethod("PrepareInputsForGeneration", BindingFlags.Instance | BindingFlags.NonPublic);
+            var method = GetType().GetMethod(nameof(PrepareInputsForGeneration), BindingFlags.Instance | BindingFlags.NonPublic);
             var parameters = method.GetParameters();
             return parameters.Any(p => p.Name == "inputs_embeds");
         }
@@ -122,6 +151,7 @@ namespace Doji.AI.Transformers {
                 // make dummy input_ids with value -100, as a sanity check ensuring that they won't be used for encoding
                 //var shape = encoder_outputs.last_hidden_state.size()[:-1]
                 //torch.ones(shape, dtype = torch.long = self.device) * -100
+                throw new NotImplementedException();
             }
 
             // If there is some tensor in `model_kwargs`, we can infer the batch size from it. This is helpful with
@@ -135,7 +165,7 @@ namespace Doji.AI.Transformers {
             }
 
             if (modelKwargs.ContainsKey("inputs_embeds")) {
-                inputs = TensorUtils.Ones(new TensorShape(batch_size, 0), DataType.Int) as TensorInt;
+                inputs = Ones<TensorInt>(new TensorShape(batch_size, 0));
             }
 
             if (bosTokenId == null) {
@@ -143,7 +173,7 @@ namespace Doji.AI.Transformers {
             }
 
             using TensorInt bos = new TensorInt(bosTokenId.Value);
-            using TensorInt ones = TensorUtils.Ones(new TensorShape(batch_size, 1), DataType.Int) as TensorInt;
+            using TensorInt ones = Ones<TensorInt>(new TensorShape(batch_size, 1));
             TensorInt mul = TensorInt.AllocNoData(ones.shape);
 
             _ops.Mul(ones, bos, mul);
@@ -152,12 +182,13 @@ namespace Doji.AI.Transformers {
 
         /// <summary>
         /// Prepares the special tokens for generation, overwriting the generation config with their processed versions converted to tensor.
+        /// Note that <paramref name="generationConfig"/> is modified in this method.
         /// </summary>
-        public void PrepareSpecialTokens(GenerationConfig generationConfig, bool? kwargsHasAttentionMask = null) {
-            Tensor bos_token_tensor = _tensor_or_none(generationConfig.BosTokenId);
-            Tensor eos_token_tensor = _tensor_or_none(generationConfig.EosTokenId);
-            Tensor pad_token_tensor = _tensor_or_none(generationConfig.PadTokenId);
-            Tensor decoder_start_token_tensor = _tensor_or_none(generationConfig.DecoderStartTokenId);
+        private void PrepareSpecialTokens(GenerationConfig generationConfig, bool? kwargsHasAttentionMask = null) {
+            Tensor bos_token_tensor = TensorOrNone(generationConfig.BosTokenId);
+            Tensor eos_token_tensor = TensorOrNone(generationConfig.EosTokenId);
+            Tensor pad_token_tensor = TensorOrNone(generationConfig.PadTokenId);
+            Tensor decoder_start_token_tensor = TensorOrNone(generationConfig.DecoderStartTokenId);
 
             if (Config.IsEncoderDecoder) {
                 decoder_start_token_tensor = decoder_start_token_tensor ?? bos_token_tensor;
@@ -196,7 +227,7 @@ namespace Doji.AI.Transformers {
             generationConfig.DecoderStartTokenTensor = decoder_start_token_tensor;
         }
 
-        private Tensor _tensor_or_none(int? token) {
+        private Tensor TensorOrNone(int? token) {
             if (token == null) {
                 return null;
             }
@@ -204,12 +235,35 @@ namespace Doji.AI.Transformers {
             return new TensorInt(new TensorShape(1), new int[] { token.Value });
         }
 
-        private Tensor _tensor_or_none(int[] token) {
+        private Tensor TensorOrNone(int[] token) {
             if (token == null) {
                 return null;
             }
 
             return new TensorInt(new TensorShape(token.Length), token);
+        }
+
+        private static Tensor PrepareAttentionMaskForGeneration(Tensor inputs, Tensor padTokenId) {
+            // No information for attention mask inference -> return default attention mask
+            var defaultAttentionMask = Ones<TensorInt>(inputs.shape);
+            if (padTokenId == null) {
+                return defaultAttentionMask;
+            }
+            bool isInputIds = inputs.shape.length == 2 && (inputs.dataType == DataType.Int);
+
+            if (!isInputIds) {
+                return defaultAttentionMask;
+            }
+
+            throw new NotImplementedException("Can't infer missing attention mask. Please provide an `attention_mask`");
+            /*
+            // Otherwise we have may have information -> try to infer the attention mask
+            bool isPadTokenInInputs = padTokenId != null && torch.isin(inputs, torch.tensor(new[] { padTokenId.Value }, dtype: torch.@long)).any().ToBoolean();
+            bool isPadTokenNotEqualToEosTokenId = eosTokenId == null || !torch.isin(torch.tensor(new[] { eosTokenId.Value }, dtype: torch.@long), torch.tensor(new[] { padTokenId.Value }, dtype: torch.@long)).any().ToBoolean();
+            bool canInferAttentionMask = isPadTokenInInputs && isPadTokenNotEqualToEosTokenId;
+            var attentionMaskFromPadding = inputs.ne(padTokenId.Value).to_type(torch.@long);
+            var attentionMask = torch.where(torch.tensor(canInferAttentionMask), attentionMaskFromPadding, defaultAttentionMask);
+            return attentionMask;*/
         }
     }
 }
