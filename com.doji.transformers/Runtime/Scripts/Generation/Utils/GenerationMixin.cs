@@ -18,6 +18,7 @@ namespace Doji.AI.Transformers {
         public void Generate(
             TensorInt inputs,
             GenerationConfig generationConfig,
+            PreTrainedTokenizerBase tokenizer = null,
             Dictionary<string, object> kwargs = null)
         {
             //ValidateModelClass();
@@ -62,6 +63,28 @@ namespace Doji.AI.Transformers {
 
             if (!kwargsHasAttentionMask && requireAttentionMask && acceptsAttentionMask) {
                 modelKwargs["attention_mask"] = PrepareAttentionMaskForGeneration(inputsTensor, generationConfig.PadTokenTensor);
+            }
+
+            if (Config.IsEncoderDecoder && !modelKwargs.ContainsKey("encoder_outputs")) {
+                // if model is encoder decoder encoder_outputs are created and added to `model_kwargs`
+                PrepareEncoderDecoderKwargsForGeneration(inputsTensor, modelKwargs, modelInputName, generationConfig);
+            }
+
+            // Prepare `input_ids` which will be used for auto-regressive generation
+            TensorInt inputIds;
+            if (Config.IsEncoderDecoder) {
+                inputIds = PrepareDecoderInputIdsForGeneration(
+                    batchSize,
+                    modelInputName,
+                    modelKwargs,
+                    generationConfig.DecoderStartTokenTensor
+                ) as TensorInt;
+            } else {
+                inputIds = modelInputName == "input_ids" ? inputsTensor : Pop(modelKwargs, "input_ids") as TensorInt;
+            }
+
+            if (generationConfig.TokenHealing) {
+                inputIds = HealTokens(inputIds, tokenizer) as TensorInt;
             }
         }
 
@@ -264,6 +287,18 @@ namespace Doji.AI.Transformers {
             var attentionMaskFromPadding = inputs.ne(padTokenId.Value).to_type(torch.@long);
             var attentionMask = torch.where(torch.tensor(canInferAttentionMask), attentionMaskFromPadding, defaultAttentionMask);
             return attentionMask;*/
+        }
+
+        private static Tensor PrepareEncoderDecoderKwargsForGeneration(Tensor inputs, Dictionary<string, object> modelKwargs, string modelInputName, GenerationConfig generationConfig) {
+            throw new NotImplementedException();
+        }
+
+        private static Tensor PrepareDecoderInputIdsForGeneration(int batchSize, string modelInputName, Dictionary<string, object> modelKwargs, Tensor decoderStartTokenTensor) {
+            throw new NotImplementedException();
+        }
+
+        private static Tensor HealTokens(Tensor inputIds, PreTrainedTokenizerBase tokenizer) {
+            throw new NotImplementedException();
         }
     }
 }
