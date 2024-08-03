@@ -9,13 +9,13 @@ namespace Doji.AI.Transformers {
         /* Parameters that control the length of the output */
 
         [JsonProperty("max_length")]
-        public int MaxLength { get; set; }
+        public int? MaxLength { get; set; }
 
         [JsonProperty("max_new_tokens")]
         public int? MaxNewTokens { get; set; }
 
         [JsonProperty("min_length")]
-        public int MinLength { get; set; }
+        public int? MinLength { get; set; }
 
         [JsonProperty("min_new_tokens")]
         public int? MinNewTokens { get; set; }

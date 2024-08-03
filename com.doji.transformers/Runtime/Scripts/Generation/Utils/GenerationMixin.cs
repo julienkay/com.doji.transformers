@@ -19,10 +19,10 @@ namespace Doji.AI.Transformers {
             TensorInt inputs,
             GenerationConfig generationConfig,
             PreTrainedTokenizerBase tokenizer = null,
-            Dictionary<string, object> kwargs = null)
+            Kwargs kwargs = null)
         {
             //ValidateModelClass();
-            var modelKwargs = kwargs ?? new Dictionary<string, object>();
+            var modelKwargs = kwargs ?? new Kwargs();
             //ValidateModelKwargs();
             //ValidateAssistant();
 
@@ -80,18 +80,31 @@ namespace Doji.AI.Transformers {
                     generationConfig.DecoderStartTokenTensor
                 ) as TensorInt;
             } else {
-                inputIds = modelInputName == "input_ids" ? inputsTensor : Pop(modelKwargs, "input_ids") as TensorInt;
+                inputIds = modelInputName == "input_ids" ? inputsTensor : modelKwargs.Pop("input_ids") as TensorInt;
             }
 
             if (generationConfig.TokenHealing) {
                 inputIds = HealTokens(inputIds, tokenizer) as TensorInt;
             }
+
+            // Prepare `max_length` depending on other stopping criteria.
+            int inputIdsLength = inputIds.shape[-1];
+            bool hasDefaultMaxLength = kwargs.Get("max_length") == null && generationConfig.MaxLength != null;
+            bool hasDefaultMinLength = kwargs.Get("min_length") == null && generationConfig.MinLength != null;
+            PrepareGeneratedLength(
+                generationConfig,
+                hasDefaultMaxLength,
+                hasDefaultMinLength,
+                modelInputName,
+                inputIdsLength,
+                inputsTensor
+            );
         }
 
         /// <summary>
         /// This function extracts the model-specific `inputs` for generation.
         /// </summary>
-        private void PrepareModelInputs(ref TensorInt inputs, out string inputName, int bosTokenId, ref Dictionary<string, object> modelKwargs) {
+        private void PrepareModelInputs(ref TensorInt inputs, out string inputName, int bosTokenId, ref Kwargs modelKwargs) {
             // retrieve all kwargs that are non-None or non-model input related.
             // some encoder-decoder models have different names for model and encoder
             if (Config.IsEncoderDecoder && HasEncoder /* && Encoder.MainInputName != MainInputName*/) {
@@ -101,8 +114,8 @@ namespace Doji.AI.Transformers {
             }
 
             string inputN = inputName;
-            modelKwargs = modelKwargs.Where(kvp => kvp.Value != null || kvp.Key != inputN).ToDictionary(kvp => kvp.Key, kvp => kvp.Value);
-            var inputsKwarg = Pop(modelKwargs, inputName, null);
+            modelKwargs = modelKwargs.Where(kvp => kvp.Value != null || kvp.Key != inputN);
+            var inputsKwarg = modelKwargs.Pop(inputName, null);
             if (inputsKwarg != null && inputs != null) {
                 throw new ArgumentException($"`inputs`: {inputs}` were passed alongside {inputName} which is not allowed. " +
                 $"Make sure to either pass {inputs} or {inputName}=...");
@@ -146,15 +159,6 @@ namespace Doji.AI.Transformers {
             MaybeInitializeInputIdsForGeneration(ref inputs, bosTokenId, modelKwargs);
         }
 
-        private TValue Pop<TKey, TValue>(Dictionary<TKey, TValue> d, TKey key, TValue defaultVal = default) {
-            if (d.TryGetValue(key, out TValue val)) {
-                d.Remove(key);
-                return val;
-            } else {
-                return defaultVal;
-            }
-        }
-
         private bool HasInputsEmbedsForwarding() {
             var method = GetType().GetMethod(nameof(PrepareInputsForGeneration), BindingFlags.Instance | BindingFlags.NonPublic);
             var parameters = method.GetParameters();
@@ -164,7 +168,7 @@ namespace Doji.AI.Transformers {
         /// <summary>
         /// Initializes input ids for generation, if necessary.
         /// </summary>
-        private void MaybeInitializeInputIdsForGeneration(ref TensorInt inputs, int? bosTokenId, Dictionary<string, object> modelKwargs) {
+        private void MaybeInitializeInputIdsForGeneration(ref TensorInt inputs, int? bosTokenId, Kwargs modelKwargs) {
             if (inputs != null) {
                 return;
             }
@@ -289,16 +293,58 @@ namespace Doji.AI.Transformers {
             return attentionMask;*/
         }
 
-        private static Tensor PrepareEncoderDecoderKwargsForGeneration(Tensor inputs, Dictionary<string, object> modelKwargs, string modelInputName, GenerationConfig generationConfig) {
+        private static Tensor PrepareEncoderDecoderKwargsForGeneration(Tensor inputs, Kwargs modelKwargs, string modelInputName, GenerationConfig generationConfig) {
             throw new NotImplementedException();
         }
 
-        private static Tensor PrepareDecoderInputIdsForGeneration(int batchSize, string modelInputName, Dictionary<string, object> modelKwargs, Tensor decoderStartTokenTensor) {
+        private static Tensor PrepareDecoderInputIdsForGeneration(int batchSize, string modelInputName, Kwargs modelKwargs, Tensor decoderStartTokenTensor) {
             throw new NotImplementedException();
         }
 
         private static Tensor HealTokens(Tensor inputIds, PreTrainedTokenizerBase tokenizer) {
             throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Prepared max and min length in generation configs to avoid clashes between similar attributes
+        /// </summary>
+        public GenerationConfig PrepareGeneratedLength(
+            GenerationConfig generationConfig,
+            bool hasDefaultMaxLength,
+            bool hasDefaultMinLength,
+            string modelInputName,
+            int inputIdsLength,
+            Tensor inputsTensor)
+        {
+            if (generationConfig.MaxNewTokens.HasValue) {
+                if (!hasDefaultMaxLength && generationConfig.MaxLength.HasValue) {
+                    Log.Warning($"Both `max_new_tokens` (={generationConfig.MaxNewTokens}) and `max_length`(={generationConfig.MaxLength}) seem to have been set. `max_new_tokens` will take precedence. " +
+                        "Please refer to the documentation for more information. " +
+                        "(https://huggingface.co/docs/transformers/main/en/main_classes/text_generation)"
+                    );
+                }
+                generationConfig.MaxLength = generationConfig.MaxNewTokens + inputIdsLength;
+            }
+            // if both `inputs_embeds` and `input_ids` are passed, we do not correct the length
+            // otherwise we need total length [inputs-embeds-len + new-tokens-len] to not go beyond indicated `max_length``
+            else if (modelInputName == "inputs_embeds" && inputIdsLength != inputsTensor.shape[1] && !Config.IsEncoderDecoder) {
+                generationConfig.MaxLength -= inputsTensor.shape[1];
+            }
+
+            // same for min length
+            if (generationConfig.MinNewTokens.HasValue) {
+                if (!hasDefaultMinLength) {
+                    Log.Warning($"Both `min_new_tokens` (={generationConfig.MinNewTokens}) and `min_length`(={generationConfig.MinLength}) seem to have been set. `min_new_tokens` will take precedence. " +
+                        "Please refer to the documentation for more information. " +
+                        "(https://huggingface.co/docs/transformers/main/en/main_classes/text_generation)"
+                    );
+                }
+                generationConfig.MinLength = generationConfig.MinNewTokens + inputIdsLength;
+            } else if (modelInputName == "inputs_embeds" && inputIdsLength != inputsTensor.shape[1] && !Config.IsEncoderDecoder) {
+                generationConfig.MinLength = Math.Max(generationConfig.MinLength.Value - inputsTensor.shape[1], 0);
+            }
+
+            return generationConfig;
         }
     }
 }
