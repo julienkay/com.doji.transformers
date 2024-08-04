@@ -173,6 +173,8 @@ namespace Doji.AI.Transformers {
                     useDynamicCacheByDefault = true;
                 }
             }
+
+            ValidateGeneratedLength(generationConfig, inputIdsLength, hasDefaultMaxLength);
         }
 
         private void ValidateAssistant(object assistantModel) {
@@ -402,6 +404,35 @@ namespace Doji.AI.Transformers {
 
         private static Tensor HealTokens(Tensor inputIds, PreTrainedTokenizerBase tokenizer) {
             throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Performs validation related to the resulting generated length"
+        /// </summary>
+        public void ValidateGeneratedLength(GenerationConfig generationConfig, int inputIdsLength, bool hasDefaultMaxLength) {
+            // Max length warnings related to poor parameterization
+            if (hasDefaultMaxLength && generationConfig.MaxNewTokens == null && generationConfig.MaxLength == 20) {
+                Log.Warning($"Using the model-agnostic default `max_length` (={generationConfig.MaxLength}) to control the generation length. We recommend setting `max_new_tokens` to control the maximum length of the generation.");
+            }
+            if (inputIdsLength >= generationConfig.MaxLength) {
+                string inputIdsString = Config.IsEncoderDecoder ? "decoder_input_ids" : "input_ids";
+                throw new ArgumentException($"Input length of {inputIdsString} is {inputIdsLength}, but `max_length` is set to {generationConfig.MaxLength}. This can lead to unexpected behavior. You should consider increasing `max_length` or, better yet, setting `max_new_tokens`.");
+            }
+
+            // Min length warnings due to unfeasible parameter combinations
+            string minLengthErrorSuffix = " Generation will stop at the defined maximum length. You should decrease the minimum length and/or increase the maximum length.";
+            if (hasDefaultMaxLength) {
+                minLengthErrorSuffix += $" Note that `max_length` is set to {generationConfig.MaxLength}, its default value.";
+            }
+            if (generationConfig.MinLength.HasValue && generationConfig.MinLength.Value > generationConfig.MaxLength) {
+                Log.Warning($"Unfeasible length constraints: `min_length` ({generationConfig.MinLength}) is larger than the maximum possible length ({generationConfig.MaxLength})." + minLengthErrorSuffix);
+            }
+            if (generationConfig.MinNewTokens.HasValue) {
+                int minLength = generationConfig.MinNewTokens.Value + inputIdsLength;
+                if (minLength > generationConfig.MaxLength) {
+                    Log.Warning($"Unfeasible length constraints: `min_new_tokens` ({generationConfig.MinNewTokens}), when added to the prompt length ({inputIdsLength}), is larger than the maximum possible length ({generationConfig.MaxLength})." + minLengthErrorSuffix);
+                }
+            }
         }
 
         /// <summary>
