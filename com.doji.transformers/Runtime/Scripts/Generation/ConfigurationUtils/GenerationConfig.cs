@@ -166,8 +166,22 @@ namespace Doji.AI.Transformers {
 
 
         /* Generation parameters exclusive to encoder-decoder models */
+
         [JsonProperty("decoder_start_token_id")]
         public int[] DecoderStartTokenId { get; set; }
+
+
+
+        /* Parameters specific to the caching mechanism: */
+
+        [JsonProperty("cache_implementation ")]
+        public string CacheImplementation { get; set; }
+
+        [JsonProperty("cache_config ")]
+        public CacheConfig CacheConfig { get; set; }
+
+        [JsonProperty("return_legacy_cache ")]
+        public bool ReturnLegacyCache { get; set; }
 
 
         /* remaining attributes */
@@ -243,6 +257,10 @@ namespace Doji.AI.Transformers {
             PadTokenId = null;
             BosTokenId = null;
             EosTokenId = null;
+
+            CacheImplementation = null;
+            CacheConfig = null;
+            ReturnLegacyCache = true;
         }
     }
 }

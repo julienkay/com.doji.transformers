@@ -10,6 +10,19 @@ namespace Doji.AI.Transformers {
         public const string MODEL_NAME = "model";
         public virtual string MainInputName { get; } = "input_ids";
 
+        // Flash Attention 2 support
+        public virtual bool SupportsFlashAttn2 { get; } = false;
+
+        // SDPA support
+        public virtual bool SupportsSdpa { get; } = false;
+
+        // Has support for a `Cache` instance as `past_key_values`? Does it support a `StaticCache`?
+        public virtual bool SupportsCacheClass { get; } = false;
+        public virtual bool SupportsStaticCache { get; } = false;
+
+        // Has support for a `QuantoQuantizedCache` instance as `past_key_values`
+        public virtual bool SupportsQuantizedCache { get; } = false;
+
 
         /* In original code these are retrieved by inspecting attributes/arguments
          t.b.d. if there's a good way to implement this generically without resorting to Reflection */

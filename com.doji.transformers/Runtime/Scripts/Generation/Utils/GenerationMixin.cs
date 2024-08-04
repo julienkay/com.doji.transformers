@@ -8,6 +8,20 @@ using Unity.Sentis;
 namespace Doji.AI.Transformers {
 
     public abstract partial class PretrainedModel {
+
+        private static readonly Dictionary<string, Type> NEED_SETUP_CACHE_CLASSES_MAPPING = new() {
+            { "static", typeof(StaticCache) },
+            { "sliding_window", typeof(SlidingWindowCache) },
+            { "hybrid", typeof(HybridCache) },
+            { "mamba", typeof( MambaCache) }
+        };
+        private static readonly Dictionary<string, Type> QUANT_BACKEND_CLASSES_MAPPING = new() {
+            {"quanto", typeof(QuantoQuantizedCache) },
+             { "HQQ", typeof(HQQQuantizedCache) }
+        };
+
+        private Cache _cache;
+
         protected virtual void PrepareInputsForGeneration() {
             throw new NotImplementedException("A model class needs to define a `prepare_inputs_for_generation` method in order to use `.generate()`.");
         }
@@ -18,13 +32,14 @@ namespace Doji.AI.Transformers {
         public void Generate(
             TensorInt inputs,
             GenerationConfig generationConfig,
+            object assistantModel = null,
             PreTrainedTokenizerBase tokenizer = null,
             Kwargs kwargs = null)
         {
             //ValidateModelClass();
             var modelKwargs = kwargs ?? new Kwargs();
             //ValidateModelKwargs();
-            //ValidateAssistant();
+            ValidateAssistant(assistantModel);
 
             var logitsProcessor = new List<LogitsProcessor>();
             var stoppingCriteria = new List<LogitsProcessor>();
@@ -99,6 +114,86 @@ namespace Doji.AI.Transformers {
                 inputIdsLength,
                 inputsTensor
             );
+
+            bool useDynamicCacheByDefault = false;
+            string cacheName = "past_key_values";
+
+            if (assistantModel != null && generationConfig.CacheConfig != null && SupportsDefaultDynamicCache()) {
+                Log.Warning($"An assistant model is provided, using a dynamic cache instead of a cache of type='{generationConfig.CacheImplementation}'.");
+                generationConfig.CacheImplementation = null;
+            }
+
+            if (generationConfig.CacheImplementation != null && modelKwargs.Get(cacheName) != null) {
+                throw new ArgumentException("\"Passing both `cache_implementation` (used to initialize certain caches) and" +
+                    "`{cache_name}` (a Cache object) is unsupported. Please use only one of the two.");
+            } else if (generationConfig.CacheImplementation != null) {
+                if (NEED_SETUP_CACHE_CLASSES_MAPPING.ContainsKey(generationConfig.CacheImplementation)) {
+                    if (generationConfig.CacheImplementation == "static" && !SupportsStaticCache) {
+                        throw new ArgumentException("This model does not support `cache_implementation='static'`. Please check the following " +
+                            "issue: https://github.com/huggingface/transformers/issues/28981");
+                    }
+                    int maxBatchSize = generationConfig.NumBeams * generationConfig.NumReturnSequences * batchSize;
+                    modelKwargs[cacheName] = GetCache(
+                       generationConfig.CacheImplementation,
+                       maxBatchSize,
+                       generationConfig.MaxLength.Value,
+                       modelKwargs);
+                } else if (generationConfig.CacheImplementation == "quantized") {
+                    if (!SupportsQuantizedCache) {
+                        throw new ArgumentException("This model does not support the quantized cache.");
+                    }
+                    var cacheConfig = generationConfig.CacheConfig ?? new QuantizedCacheConfig();
+                    var backend = ((QuantizedCacheConfig)cacheConfig).Backend;
+                    var cacheClass = QUANT_BACKEND_CLASSES_MAPPING[backend];
+                    if (backend == "quanto") {
+                        throw new NotImplementedException("Selected cache backend `quanto` not supported.");
+                    } else if (backend == "HQQ") {
+                        throw new NotImplementedException("Selected cache backend `HQQ` not supported.");
+                    }
+                    modelKwargs[cacheName] = Activator.CreateInstance(cacheClass, cacheConfig);
+                } else if (generationConfig.CacheImplementation == "offloaded") {
+                    modelKwargs[cacheName] = new OffloadedCache();
+                }
+            } else if (generationConfig.CacheImplementation == null && SupportsDefaultDynamicCache()) {
+                // Use DynamicCache() instance by default. This will avoid back and forth from legacy format that
+                // keeps copying the cache thus using much more memory
+                var past = (string)modelKwargs.Get(cacheName, null);
+                bool requires_cross_attention_cache = Config.IsEncoderDecoder || modelKwargs.ContainsKey("encoder_outputs");
+                if (past == null) {
+                    modelKwargs[cacheName] =
+                        !requires_cross_attention_cache ?
+                        new DynamicCache() :
+                        new EncoderDecoderCache(new DynamicCache(), new DynamicCache());
+                    useDynamicCacheByDefault = true;
+                } else {
+                    modelKwargs[cacheName] =
+                          !requires_cross_attention_cache ?
+                            DynamicCache.FromLegacyCache(past) :
+                            EncoderDecoderCache.FromLegacyCache(past);
+                    useDynamicCacheByDefault = true;
+                }
+            }
+        }
+
+        private void ValidateAssistant(object assistantModel) {
+            if (assistantModel == null) {
+                return;
+            }
+
+            throw new NotImplementedException("Assitant model not yet supported.");
+            /*if (Config.IsEncoderDecoder && !assistantModel.config.is_encoder_decoder) {
+                string[] attributesToCheck = new string[] { "encoder_attention_heads", "encoder_ffn_dim", "encoder_layers"};
+                attributesToCheck = [attr for attr in dir(assistant_model.config) if attr in attributes_to_check]
+                bool areEqual = all(getattr(self.config, attr) == getattr(assistant_model.config, attr) for attr in attributes_to_check)
+                if (!areEqual) {
+                    throw new ArgumentException("The main model and the assistant don't have compatible encoder-dependent input shapes. " +
+                        "Ensure you load the assistant with the correct encoder-decoder class, e.g. `AutoModelForSpeechSeq2Seq` for Whisper.");
+                }
+            }
+
+            if (Config.vocab_size != assistantModel.config.vocab_size) {
+                throw new ArgumentException("Make sure the main and assistant model use the same tokenizer");
+            }*/
         }
 
         /// <summary>
@@ -205,6 +300,10 @@ namespace Doji.AI.Transformers {
 
             _ops.Mul(ones, bos, mul);
             inputs = mul;
+        }
+
+        private bool SupportsDefaultDynamicCache() {
+            return true;
         }
 
         /// <summary>
@@ -345,6 +444,59 @@ namespace Doji.AI.Transformers {
             }
 
             return generationConfig;
+        }
+
+        /// <summary>
+        /// Sets a cache for <see cref="Generate"/>, that will persist across calls. A new cache will only be initialized a
+        /// new <see cref="Generate"/> call requires a larger cache or uses a different batch size.
+        /// </summary>
+        public Cache GetCache(string cacheImplementation, int maxBatchSize, int maxCacheLen, Kwargs modelKwargs) {
+            Type cacheCls = NEED_SETUP_CACHE_CLASSES_MAPPING[cacheImplementation];
+            bool requiresCrossAttentionCache = Config.IsEncoderDecoder || modelKwargs.ContainsKey("encoder_outputs");
+
+            Cache cacheToCheck = null;
+            if (_cache != null) {
+                cacheToCheck = requiresCrossAttentionCache ? ((EncoderDecoderCache)_cache).SelfAttentionCache : _cache;
+            }
+
+            if (cacheImplementation == "sliding_window") {
+                maxCacheLen = Math.Min(Config.SlidingWindow.Value, maxCacheLen);
+            }
+
+            bool needNewCache = _cache == null || cacheToCheck.GetType() != cacheCls || cacheToCheck.MaxBatchSize != maxBatchSize;
+            if (cacheImplementation != "mamba") {
+                needNewCache = needNewCache || cacheToCheck.MaxCacheLen < maxCacheLen;
+            }
+
+            if (requiresCrossAttentionCache && _cache != null) {
+                needNewCache = needNewCache || ((EncoderDecoderCache)_cache).CrossAttentionCache.MaxCacheLen != ((Tensor[])modelKwargs["encoder_outputs"])[0].shape.length;
+            }
+
+            if (needNewCache) {
+                Type cacheDtype = null;//Config.PreQuantizationDtype ?? self.dtype;
+
+                var cacheArgs = new {
+                    Config,
+                    maxBatchSize,
+                    maxCacheLen,
+                    dtype = cacheDtype
+                };
+
+                _cache = (Cache)Activator.CreateInstance(cacheCls, cacheArgs);
+                if (requiresCrossAttentionCache) {
+                    var encoderArgs = new {
+                        Config,
+                        maxBatchSize,
+                        maxCacheLen = ((Tensor[])modelKwargs["encoder_outputs"])[0].shape.length,
+                        dtype = cacheDtype
+                    };
+                    _cache = new EncoderDecoderCache(_cache, (Cache)Activator.CreateInstance(cacheCls, encoderArgs));
+                }
+            } else {
+                _cache.Reset();
+            }
+
+            return _cache;
         }
     }
 }

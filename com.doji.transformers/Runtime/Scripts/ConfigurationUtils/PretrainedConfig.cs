@@ -18,6 +18,9 @@ namespace Doji.AI.Transformers {
         [JsonProperty("is_encoder_decoder")]
         public bool IsEncoderDecoder { get; set; }
 
+        [JsonProperty("sliding_window")]
+        public int? SlidingWindow { get; set; }
+
         public PretrainedConfig() {
             IsEncoderDecoder = false;
         }
