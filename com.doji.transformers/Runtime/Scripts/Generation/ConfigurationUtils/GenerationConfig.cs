@@ -1,5 +1,7 @@
 using Newtonsoft.Json;
+using System;
 using System.Collections.Generic;
+using System.Runtime.Serialization;
 using Unity.Sentis;
 
 namespace Doji.AI.Transformers {
@@ -36,16 +38,16 @@ namespace Doji.AI.Transformers {
         public bool DoSample { get; set; }
 
         [JsonProperty("num_beams")]
-        public int NumBeams { get; set; }
+        public int? NumBeams { get; set; }
 
         [JsonProperty("num_beam_groups")]
-        public int NumBeamGroups { get; set; }
+        public int? NumBeamGroups { get; set; }
 
         [JsonProperty("penalty_alpha")]
         public float? PenaltyAlpha { get; set; }
 
         [JsonProperty("use_cache")]
-        public bool UseCache { get; set; }
+        public bool? UseCache { get; set; }
 
 
         /* Parameters for manipulation of the model output logits */
@@ -54,37 +56,37 @@ namespace Doji.AI.Transformers {
         public float Temperature { get; set; }
 
         [JsonProperty("top_k")]
-        public int TopK { get; set; }
+        public int? TopK { get; set; }
 
         [JsonProperty("top_p")]
-        public float TopP { get; set; }
+        public float? TopP { get; set; }
 
         [JsonProperty("min_p")]
         public float? MinP { get; set; }
 
         [JsonProperty("typical_p")]
-        public float TypicalP { get; set; }
+        public float? TypicalP { get; set; }
 
         [JsonProperty("epsilon_cutoff")]
         public float EpsilonCutoff { get; set; }
 
         [JsonProperty("eta_cutoff")]
-        public float EtaCutoff { get; set; }
+        public float? EtaCutoff { get; set; }
 
         [JsonProperty("diversity_penalty")]
-        public float DiversityPenalty { get; set; }
+        public float? DiversityPenalty { get; set; }
 
         [JsonProperty("repetition_penalty")]
-        public float RepetitionPenalty { get; set; }
+        public float? RepetitionPenalty { get; set; }
 
         [JsonProperty("encoder_repetition_penalty")]
-        public float EncoderRepetitionPenalty { get; set; }
+        public float? EncoderRepetitionPenalty { get; set; }
 
         [JsonProperty("length_penalty")]
-        public float LengthPenalty { get; set; }
+        public float? LengthPenalty { get; set; }
 
         [JsonProperty("no_repeat_ngram_size")]
-        public int NoRepeatNgramSize { get; set; }
+        public int? NoRepeatNgramSize { get; set; }
 
         [JsonProperty("bad_words_ids")]
         public List<List<int>> BadWordsIds { get; set; }
@@ -93,7 +95,7 @@ namespace Doji.AI.Transformers {
         public List<List<int>> ForceWordsIds { get; set; }
 
         [JsonProperty("renormalize_logits")]
-        public bool RenormalizeLogits { get; set; }
+        public bool? RenormalizeLogits { get; set; }
 
         [JsonProperty("constraints")]
         public List<string> Constraints { get; set; }
@@ -105,7 +107,7 @@ namespace Doji.AI.Transformers {
         public int? ForcedEosTokenId { get; set; }
 
         [JsonProperty("remove_invalid_values")]
-        public bool RemoveInvalidValues { get; set; }
+        public bool? RemoveInvalidValues { get; set; }
 
         [JsonProperty("exponential_decay_length_penalty")]
         public (int startIndex, float decayFactor)? ExponentialDecayLengthPenalty { get; set; }
@@ -123,7 +125,7 @@ namespace Doji.AI.Transformers {
         public object SequenceBias { get; set; }
 
         [JsonProperty("token_healing")]
-        public bool TokenHealing { get; set; }
+        public bool? TokenHealing { get; set; }
 
         [JsonProperty("guidance_scale")]
         public float? GuidanceScale { get; set; }
@@ -135,22 +137,22 @@ namespace Doji.AI.Transformers {
         /*  Parameters that define the output variables of generate */
 
         [JsonProperty("num_return_sequences")]
-        public int NumReturnSequences { get; set; }
+        public int? NumReturnSequences { get; set; }
 
         [JsonProperty("output_attentions")]
-        public bool OutputAttentions { get; set; }
+        public bool? OutputAttentions { get; set; }
 
         [JsonProperty("output_hidden_states")]
-        public bool OutputHiddenStates { get; set; }
+        public bool? OutputHiddenStates { get; set; }
 
         [JsonProperty("output_scores")]
-        public bool OutputScores { get; set; }
+        public bool? OutputScores { get; set; }
 
         [JsonProperty("output_logits")]
-        public bool OutputLogits { get; set; }
+        public bool? OutputLogits { get; set; }
 
         [JsonProperty("return_dict_in_generate")]
-        public bool ReturnDictInGenerate { get; set; }
+        public bool? ReturnDictInGenerate { get; set; }
 
 
         /* special tokens that can be used at generation time */
@@ -167,20 +169,43 @@ namespace Doji.AI.Transformers {
 
         /* Generation parameters exclusive to encoder-decoder models */
 
+        [JsonProperty("encoder_no_repeat_ngram_size")]
+        public int? EncoderNoRepeatNgramSize { get; set; }
+
         [JsonProperty("decoder_start_token_id")]
         public int[] DecoderStartTokenId { get; set; }
 
 
+        /* Generation parameters exclusive to assistant generation */
+
+        [JsonProperty("num_assistant_tokens")]
+        public int? NumAssistantTokens { get; set; }
+
+        [JsonProperty("num_assistant_tokens_schedule")]
+        public Schedule NumAssistantTokensSchedule { get; set; }
+
+        [JsonProperty("prompt_lookup_num_tokens")]
+        public int? PromptLookupNumTokens { get; set; }
+
+        [JsonProperty("max_matching_ngram_size")]
+        public int? MaxMatchingNgramSize { get; set; }
+
+
+        /* Generation parameters exclusive to assistant generation */
+
+        [JsonProperty("dola_layers")]
+        public object DolaLayers { get; set; }
+
 
         /* Parameters specific to the caching mechanism: */
 
-        [JsonProperty("cache_implementation ")]
+        [JsonProperty("cache_implementation")]
         public string CacheImplementation { get; set; }
 
-        [JsonProperty("cache_config ")]
+        [JsonProperty("cache_config")]
         public CacheConfig CacheConfig { get; set; }
 
-        [JsonProperty("return_legacy_cache ")]
+        [JsonProperty("return_legacy_cache")]
         public bool ReturnLegacyCache { get; set; }
 
 
@@ -202,9 +227,29 @@ namespace Doji.AI.Transformers {
         [JsonIgnore]
         public Tensor DecoderStartTokenTensor { get; set; }
 
+        public enum GenerationMode {
+            GREEDY_SEARCH,
+            SAMPLE,
+            BEAM_SEARCH,
+            BEAM_SAMPLE,
+            GROUP_BEAM_SEARCH,
+            CONTRASTIVE_SEARCH,
+            CONSTRAINED_BEAM_SEARCH,
+            ASSISTED_GENERATION,
+            DOLA_GENERATION
+        }
+        public enum Schedule {
+            [EnumMember(Value = "heuristic")]
+            Heuristic,
+            [EnumMember(Value = "heuristic_transient")]
+            HeuristicTransient,
+            [EnumMember(Value = "constant")]
+            Constant
+        }
         public enum StoppingCondition { True, False, Never }
 
         public GenerationConfig() {
+            // Parameters that control the length of the output
             MaxLength = 20;
             MaxNewTokens = null;
             MinLength = 0;
@@ -213,12 +258,14 @@ namespace Doji.AI.Transformers {
             MaxTime = null;
             StopStrings = null;
 
+            // Parameters that control the generation strategy used
             DoSample = false;
             NumBeams = 1;
             NumBeamGroups = 1;
             PenaltyAlpha = null;
             UseCache = true;
 
+            // Parameters for manipulation of the model output logits
             Temperature = 1.0f;
             TopK = 50;
             TopP = 1.0f;
@@ -247,6 +294,7 @@ namespace Doji.AI.Transformers {
             GuidanceScale = null;
             LowMemory = null;
 
+            // Parameters that define the output variables of `generate`
             NumReturnSequences = 1;
             OutputAttentions = false;
             OutputHiddenStates = false;
@@ -254,13 +302,87 @@ namespace Doji.AI.Transformers {
             OutputLogits = false;
             ReturnDictInGenerate = false;
 
+            // Special tokens that can be used at generation time
             PadTokenId = null;
             BosTokenId = null;
             EosTokenId = null;
 
+            // Generation parameters exclusive to encoder-decoder models
+            EncoderNoRepeatNgramSize = 0;
+            DecoderStartTokenId = null;
+
+            // Assistant generation
+            NumAssistantTokens = 5;
+            NumAssistantTokensSchedule = Schedule.Heuristic;
+
+            // DoLa generation
+            DolaLayers = null;
+
+            // Cache implementation
             CacheImplementation = null;
             CacheConfig = null;
             ReturnLegacyCache = true;
+
+            //Prompt lookup decoding
+            PromptLookupNumTokens = null;
+            MaxMatchingNgramSize = null;
+
+            // The remaining attributes do not parametrize `.generate()`, but are informative and/or used by the hub
+            // interface.
+            FromModelConfig = false;
+        }
+
+        /// <summary>
+        /// Returns the generation mode triggered by the [`GenerationConfig`] instance.
+        /// </summary>
+        public GenerationMode GetGenerationMode(PreTrainedModel assistantModel = null) {
+            GenerationMode generationMode;
+
+            if (Constraints != null || ForceWordsIds != null) {
+                generationMode = GenerationMode.CONSTRAINED_BEAM_SEARCH;
+            } else if (NumBeams == 1) {
+                if (!DoSample) {
+                    if (TopK != null && TopK.Value > 1 && PenaltyAlpha != null && PenaltyAlpha.Value > 0) {
+                        generationMode = GenerationMode.CONTRASTIVE_SEARCH;
+                    } else {
+                        generationMode = GenerationMode.GREEDY_SEARCH;
+                    }
+                } else {
+                    generationMode = GenerationMode.SAMPLE;
+                }
+            } else {
+                if (NumBeamGroups > 1) {
+                    generationMode = GenerationMode.GROUP_BEAM_SEARCH;
+                } else if (DoSample) {
+                    generationMode = GenerationMode.BEAM_SAMPLE;
+                } else {
+                    generationMode = GenerationMode.BEAM_SEARCH;
+                }
+            }
+
+            if (assistantModel != null || PromptLookupNumTokens != null) {
+                if (generationMode == GenerationMode.GREEDY_SEARCH || generationMode == GenerationMode.SAMPLE) {
+                    generationMode = GenerationMode.ASSISTED_GENERATION;
+                } else {
+                    throw new ArgumentException(
+                        "You've set `assistantModel`, which triggers assisted generation. Currently, assisted generation " +
+                        "is only supported with Greedy Search and Sample."
+                    );
+                }
+            }
+
+            if (DolaLayers != null) {
+                if (generationMode == GenerationMode.GREEDY_SEARCH || generationMode == GenerationMode.SAMPLE) {
+                    generationMode = GenerationMode.DOLA_GENERATION;
+                } else {
+                    throw new ArgumentException(
+                        "You've set `dolaLayers`, which triggers DoLa generation. Currently, DoLa generation " +
+                        "is only supported with Greedy Search and Sample."
+                    );
+                }
+            }
+
+            return generationMode;
         }
     }
 }

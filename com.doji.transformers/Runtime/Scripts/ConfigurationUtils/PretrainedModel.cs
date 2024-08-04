@@ -5,7 +5,7 @@ using UnityEngine;
 
 namespace Doji.AI.Transformers {
 
-    public abstract partial class PretrainedModel : Configurable<PretrainedConfig>, IDisposable {
+    public abstract partial class PreTrainedModel : Configurable<PretrainedConfig>, IDisposable {
 
         public const string MODEL_NAME = "model";
         public virtual string MainInputName { get; } = "input_ids";
@@ -42,7 +42,7 @@ namespace Doji.AI.Transformers {
         protected IWorker _worker;
         private IBackend _ops;
 
-        public PretrainedModel(Model model, PretrainedConfig config, BackendType backend) : base(config) {
+        public PreTrainedModel(Model model, PretrainedConfig config, BackendType backend) : base(config) {
             Backend = backend;
             InitializeNetwork(model);
         }
@@ -88,7 +88,7 @@ namespace Doji.AI.Transformers {
             return LoadFromModelAsset(model.ResourcePathForModel(MODEL_NAME));
         }
 
-        private static C FromConfig<C>(PretrainedConfig config, Model model, BackendType backend) where C : PretrainedModel {
+        private static C FromConfig<C>(PretrainedConfig config, Model model, BackendType backend) where C : PreTrainedModel {
             try {
                 return (C)Activator.CreateInstance(typeof(C), model, config, backend);
             } catch (Exception e) {
@@ -97,7 +97,7 @@ namespace Doji.AI.Transformers {
             }
         }
 
-        protected static C FromPretrained<C>(string pretrainedModelNameOrPath, BackendType backend) where C : PretrainedModel {
+        protected static C FromPretrained<C>(string pretrainedModelNameOrPath, BackendType backend) where C : PreTrainedModel {
             string configFile = Path.Combine(pretrainedModelNameOrPath, CONFIG_NAME);
             var config = LoadConfig(configFile) ?? throw new FileNotFoundException($"File '{configFile}' not found for: '{typeof(C).Name}'");
             var model = LoadModel(pretrainedModelNameOrPath) ?? throw new FileNotFoundException($"Model file for '{pretrainedModelNameOrPath}' not found for: '{typeof(C).Name}'");

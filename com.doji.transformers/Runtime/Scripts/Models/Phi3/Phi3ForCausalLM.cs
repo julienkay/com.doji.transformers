@@ -4,7 +4,7 @@ using Unity.Sentis;
 
 namespace Doji.AI.Transformers {
 
-    public class Phi3ForCausalLM : PretrainedModel {
+    public class Phi3ForCausalLM : PreTrainedModel {
 
         protected override bool AcceptsAttentionMask => true;
         protected override bool HasEncoder => false;

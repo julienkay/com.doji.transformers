@@ -7,7 +7,7 @@ using Unity.Sentis;
 
 namespace Doji.AI.Transformers {
 
-    public abstract partial class PretrainedModel {
+    public abstract partial class PreTrainedModel {
 
         private static readonly Dictionary<string, Type> NEED_SETUP_CACHE_CLASSES_MAPPING = new() {
             { "static", typeof(StaticCache) },
@@ -32,7 +32,7 @@ namespace Doji.AI.Transformers {
         public void Generate(
             TensorInt inputs,
             GenerationConfig generationConfig,
-            object assistantModel = null,
+            PreTrainedModel assistantModel = null,
             PreTrainedTokenizerBase tokenizer = null,
             Kwargs kwargs = null)
         {
@@ -98,7 +98,7 @@ namespace Doji.AI.Transformers {
                 inputIds = modelInputName == "input_ids" ? inputsTensor : modelKwargs.Pop("input_ids") as TensorInt;
             }
 
-            if (generationConfig.TokenHealing) {
+            if (generationConfig.TokenHealing == true) {
                 inputIds = HealTokens(inputIds, tokenizer) as TensorInt;
             }
 
@@ -132,7 +132,7 @@ namespace Doji.AI.Transformers {
                         throw new ArgumentException("This model does not support `cache_implementation='static'`. Please check the following " +
                             "issue: https://github.com/huggingface/transformers/issues/28981");
                     }
-                    int maxBatchSize = generationConfig.NumBeams * generationConfig.NumReturnSequences * batchSize;
+                    int maxBatchSize = (generationConfig.NumBeams ?? 1) * (generationConfig.NumReturnSequences ?? 1) * batchSize;
                     modelKwargs[cacheName] = GetCache(
                        generationConfig.CacheImplementation,
                        maxBatchSize,
@@ -175,6 +175,9 @@ namespace Doji.AI.Transformers {
             }
 
             ValidateGeneratedLength(generationConfig, inputIdsLength, hasDefaultMaxLength);
+
+            // determine generation mode
+            var generationMode = generationConfig.GetGenerationMode(assistantModel);
         }
 
         private void ValidateAssistant(object assistantModel) {

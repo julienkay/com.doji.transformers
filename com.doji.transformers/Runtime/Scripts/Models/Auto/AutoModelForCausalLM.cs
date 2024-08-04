@@ -65,7 +65,7 @@ namespace Doji.AI.Transformers {
         /// <summary>
         /// Loads the given pretrained model (with a causal language modeling head).
         /// </summary>
-        public static PretrainedModel FromPretrained(string pretrainedModelNameOrPath, BackendType backend = BackendType.GPUCompute) {
+        public static PreTrainedModel FromPretrained(string pretrainedModelNameOrPath, BackendType backend = BackendType.GPUCompute) {
 #if UNITY_EDITOR
             OnModelRequested?.Invoke(pretrainedModelNameOrPath);
 #endif

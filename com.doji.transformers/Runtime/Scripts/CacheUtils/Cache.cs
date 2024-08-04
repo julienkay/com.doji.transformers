@@ -59,7 +59,7 @@ namespace Doji.AI.Transformers {
         /// </summary>
         public static Cache FromLegacyCache(string cls) {
             Type clsType = Type.GetType(cls);
-            Activator.CreateInstance(clsType);
+            return Activator.CreateInstance(clsType) as Cache;
         }
     }
     public class OffloadedCache : DynamicCache { }
