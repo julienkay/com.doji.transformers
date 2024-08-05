@@ -43,7 +43,7 @@ namespace Doji.AI.Transformers {
             ValidateAssistant(assistantModel);
 
             var logitsProcessor = new LogitsProcessorList();
-            var stoppingCriteria = new LogitsProcessorList();
+            var stoppingCriteria = new StoppingCriteriaList();
 
             bool acceptsAttentionMask = AcceptsAttentionMask;
             bool requireAttentionMask = !modelKwargs.ContainsKey("encoder_outputs");
@@ -200,6 +200,9 @@ namespace Doji.AI.Transformers {
                 negativePromptIds: null,
                 negativePromptAttentionMask: null
             );
+
+            // prepare stopping criteria
+            var preparedStoppingCriteria = GetStoppingCriteria(generationConfig, stoppingCriteria, tokenizer);
         }
 
         public LogitsProcessorList GetLogitsProcessor(
@@ -360,8 +363,7 @@ namespace Doji.AI.Transformers {
         public StoppingCriteriaList GetStoppingCriteria(
            GenerationConfig generationConfig,
            StoppingCriteriaList stoppingCriteria = null,
-           PreTrainedTokenizerBase tokenizer = null,
-           params object[] kwargs)
+           PreTrainedTokenizerBase tokenizer = null)
         {
             var criteria = new StoppingCriteriaList();
 
