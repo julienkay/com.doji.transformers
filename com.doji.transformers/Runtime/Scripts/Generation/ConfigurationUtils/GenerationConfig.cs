@@ -23,6 +23,27 @@ namespace Doji.AI.Transformers {
         public int ContextWidth { get; set; }
     }
 
+    public enum GenerationMode {
+        GREEDY_SEARCH,
+        SAMPLE,
+        BEAM_SEARCH,
+        BEAM_SAMPLE,
+        GROUP_BEAM_SEARCH,
+        CONTRASTIVE_SEARCH,
+        CONSTRAINED_BEAM_SEARCH,
+        ASSISTED_GENERATION,
+        DOLA_GENERATION
+    }
+    public enum Schedule {
+        [EnumMember(Value = "heuristic")]
+        Heuristic,
+        [EnumMember(Value = "heuristic_transient")]
+        HeuristicTransient,
+        [EnumMember(Value = "constant")]
+        Constant
+    }
+    public enum StoppingCondition { True, False, Never }
+
     public partial class GenerationConfig {
 
         /* Parameters that control the length of the output */
@@ -246,27 +267,6 @@ namespace Doji.AI.Transformers {
         public Tensor PadTokenTensor { get; set; }
         [JsonIgnore]
         public Tensor DecoderStartTokenTensor { get; set; }
-
-        public enum GenerationMode {
-            GREEDY_SEARCH,
-            SAMPLE,
-            BEAM_SEARCH,
-            BEAM_SAMPLE,
-            GROUP_BEAM_SEARCH,
-            CONTRASTIVE_SEARCH,
-            CONSTRAINED_BEAM_SEARCH,
-            ASSISTED_GENERATION,
-            DOLA_GENERATION
-        }
-        public enum Schedule {
-            [EnumMember(Value = "heuristic")]
-            Heuristic,
-            [EnumMember(Value = "heuristic_transient")]
-            HeuristicTransient,
-            [EnumMember(Value = "constant")]
-            Constant
-        }
-        public enum StoppingCondition { True, False, Never }
 
         public GenerationConfig() {
             // Parameters that control the length of the output

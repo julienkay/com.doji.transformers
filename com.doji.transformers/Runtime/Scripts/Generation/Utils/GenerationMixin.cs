@@ -203,6 +203,288 @@ namespace Doji.AI.Transformers {
 
             // prepare stopping criteria
             var preparedStoppingCriteria = GetStoppingCriteria(generationConfig, stoppingCriteria, tokenizer);
+
+            // 10. go into different generation modes
+            if (generationMode == GenerationMode.ASSISTED_GENERATION) {
+                if (generationConfig.NumReturnSequences > 1) {
+                    throw new ArgumentException("num_return_sequences has to be 1 when doing assisted generate, but is " + generationConfig.NumReturnSequences);
+                }
+                if (batchSize > 1) {
+                    throw new ArgumentException("assisted generate is only supported for batch_size = 1");
+                }
+                if (modelKwargs.Get<bool>("use_cache") != true) {
+                    throw new ArgumentException("assisted generate requires `use_cache=True`");
+                }
+                if (generationConfig.CacheImplementation == "static") {
+                    throw new ArgumentException("assisted generate is not supported with `static_cache`");
+                }
+                if (IsStateful) {
+                    throw new ArgumentException("assisted generation is not supported with stateful models, such as " + GetType().Name);
+                }
+
+                // 11. Get the candidate generator, given the parameterization
+                var candidate_generator = GetCandidateGenerator(
+                    generationConfig,
+                    inputIds,
+                    inputsTensor,
+                    assistantModel,
+                    logitsProcessor,
+                    modelKwargs
+                );
+
+                // 12. prepare logits warper (if `do_sample` is `True`)
+                var preparedLogitsWarper = generationConfig.DoSample
+                    ? GetLogitsWarper(generationConfig)
+                    : null;
+
+                // 13. run assisted generate
+                var result = AssistedDecoding(
+                    inputIds,
+                    candidate_generator,
+                    preparedLogitsProcessor,
+                    preparedLogitsWarper,
+                    preparedStoppingCriteria,
+                    generationConfig,
+                    streamer,
+                    modelKwargs
+                );
+            } else if (generationMode == GenerationMode.DOLA_GENERATION) {
+                if (IsStateful) {
+                    throw new ArgumentException("dola decoding is not supported with stateful models, such as " + this.GetType().Name);
+                }
+                var preparedLogitsWarper = generationConfig.DoSample
+                    ? GetLogitsWarper(generationConfig)
+                    : null;
+
+                var result = DolaDecoding(
+                    inputIds,
+                    generationConfig.DolaLayers,
+                    preparedLogitsProcessor,
+                    preparedLogitsWarper,
+                    preparedStoppingCriteria,
+                    generationConfig,
+                    streamer,
+                    modelKwargs
+                );
+            } else if (generationMode == GenerationMode.CONTRASTIVE_SEARCH) {
+                if (!(bool)modelKwargs.GetType().GetProperty("use_cache").GetValue(modelKwargs, null)) {
+                    throw new ArgumentException("Contrastive search requires `use_cache=True`");
+                }
+                if (IsStateful) {
+                    throw new ArgumentException("contrastive search is not supported with stateful models, such as " + this.GetType().Name);
+                }
+
+                var result = ContrastiveSearch(
+                    inputIds,
+                    preparedLogitsProcessor,
+                    preparedStoppingCriteria,
+                    generationConfig,
+                    streamer,
+                    modelKwargs
+                );
+            } else if (generationMode == GenerationMode.SAMPLE || generationMode == GenerationMode.GREEDY_SEARCH) {
+                // 11. prepare logits warper
+                var preparedLogitsWarper = generationConfig.DoSample
+                    ? GetLogitsWarper(generationConfig)
+                    : null;
+
+                // 12. expand inputIds with `num_return_sequences` additional sequences per batch
+                ExpandInputsForGeneration(
+                    ref inputIds,
+                    generationConfig.NumReturnSequences,
+                    Config.IsEncoderDecoder,
+                    modelKwargs
+                );
+
+                // 13. run sample (it degenerates to greedy search when `generationConfig.do_sample=False`)
+                var result = Sample(
+                    inputIds,
+                    preparedLogitsProcessor,
+                    preparedLogitsWarper,
+                    preparedStoppingCriteria,
+                    generationConfig,
+                    streamer,
+                    modelKwargs
+                );
+            } else if (generationMode == GenerationMode.BEAM_SAMPLE || generationMode == GenerationMode.BEAM_SEARCH) {
+                // 11. prepare logits warper
+                var preparedLogitsWarper = generationConfig.DoSample
+                    ? GetLogitsWarper(generationConfig)
+                    : null;
+
+                // 12. prepare beam search scorer
+                var beamScorer = new BeamSearchScorer(
+                    batchSize,
+                    generationConfig.NumBeams.Value,
+                    generationConfig.LengthPenalty,
+                    generationConfig.EarlyStopping,
+                    generationConfig.NumReturnSequences,
+                    generationConfig.MaxLength.Value
+                );
+
+                // 13. interleave inputIds with `num_beams` additional sequences per batch
+                ExpandInputsForGeneration(
+                    ref inputIds,
+                    generationConfig.NumBeams,
+                    Config.IsEncoderDecoder,
+                    modelKwargs
+                );
+
+                // 14. run beam sample
+                var result = BeamSearch(
+                    inputIds,
+                    beamScorer,
+                    preparedLogitsProcessor,
+                    preparedLogitsWarper,
+                    preparedStoppingCriteria,
+                    generationConfig,
+                    modelKwargs
+                );
+            } else if (generationMode == GenerationMode.GROUP_BEAM_SEARCH) {
+                // 11. prepare beam search scorer
+                var beamScorer = new BeamSearchScorer(
+                    batchSize,
+                    generationConfig.NumBeams.Value,
+                    generationConfig.LengthPenalty,
+                    generationConfig.EarlyStopping,
+                    generationConfig.NumReturnSequences,
+                    generationConfig.NumBeamGroups,
+                    generationConfig.MaxLength
+                );
+
+                // 12. interleave inputIds with `num_beams` additional sequences per batch
+                ExpandInputsForGeneration(
+                    ref inputIds,
+                    generationConfig.NumBeams,
+                    Config.IsEncoderDecoder,
+                    modelKwargs
+                );
+
+                // 13. run beam search
+                var result = GroupBeamSearch(
+                    inputIds,
+                    beamScorer,
+                    preparedLogitsProcessor,
+                    preparedStoppingCriteria,
+                    generationConfig,
+                    modelKwargs
+                );
+            } else if (generationMode == GenerationMode.CONSTRAINED_BEAM_SEARCH) {
+                var finalConstraints = new List<string>();
+                if (generationConfig.Constraints != null) {
+                    finalConstraints.AddRange(generationConfig.Constraints);
+                }
+
+                if (generationConfig.ForceWordsIds != null) {
+                    Action typeerror = () =>
+                    {
+                        throw new ArgumentException(
+                            "`force_words_ids` has to either be a `List<List<List<int]]]` or `List<List<int]]` " +
+                            "of positive integers, but is " + generationConfig.ForceWordsIds
+                        );
+                    };
+                    throw new NotImplementedException("Constrained Beam Search");
+                    /*if (!(generationConfig.ForceWordsIds is List<List<List<int>>> forceWordsIdsList) || forceWordsIdsList.Count == 0) {
+                        typeerror();
+                    }
+
+                    foreach (var word_ids in generationConfig.ForceWordsIds) {
+                        if (word_ids[0] is List<int>) {
+                            if (!(word_ids is List<List<int>> listOfLists) || listOfLists.Count == 0) {
+                                typeerror();
+                            }
+                            if (listOfLists.Any(token_ids => !(token_ids is List<int>))) {
+                                typeerror();
+                            }
+                            if (listOfLists.Any(token_ids => token_ids.Any(token_id => token_id < 0))) {
+                                typeerror();
+                            }
+
+                            var constraint = new DisjunctiveConstraint(listOfLists);
+                            finalConstraints.Add(constraint);
+                        } else {
+                            if (!(word_ids is List<int> list) || list.Count == 0) {
+                                typeerror();
+                            }
+                            if (list.Any(token_id => token_id < 0)) {
+                                typeerror();
+                            }
+
+                            var constraint = new PhrasalConstraint(list);
+                            finalConstraints.Add(constraint);
+                        }
+                    }
+
+                    // 11. prepare beam search scorer
+                    var constrained_beam_scorer = new ConstrainedBeamSearchScorer(
+                        finalConstraints,
+                        batchSize,
+                        generationConfig.NumBeams.Value,
+                        generationConfig.LengthPenalty,
+                        generationConfig.EarlyStopping,
+                        generationConfig.NumReturnSequences,
+                        generationConfig.MaxLength
+                    );
+
+                    // 12. interleave inputIds with `num_beams` additional sequences per batch
+                    ExpandInputsForGeneration(
+                        ref inputIds,
+                        generationConfig.NumBeams,
+                        Config.IsEncoderDecoder,
+                        modelKwargs
+                    );
+
+                    // 13. run beam search
+                    var result = ConstrainedBeamSearch(
+                        inputIds,
+                        constrained_beam_scorer,
+                        preparedLogitsProcessor,
+                        preparedStoppingCriteria,
+                        generationConfig,
+                        modelKwargs
+                    );*/
+                }
+            }
+        }
+
+        private object GetCandidateGenerator(GenerationConfig generationConfig, TensorInt inputIds, TensorInt inputsTensor, object assistantModel, object logitsProcessor, Kwargs modelKwargs) {
+            throw new NotImplementedException();
+        }
+
+        private object GetLogitsWarper(GenerationConfig generationConfig) {
+            throw new NotImplementedException();
+        }
+
+        private object AssistedDecoding(TensorInt inputIds, object candidateGenerator, object logitsProcessor, object logitsWarper, object stoppingCriteria, GenerationConfig generationConfig, object streamer, Kwargs modelKwargs) {
+            throw new NotImplementedException();
+        }
+
+        private object DolaDecoding(TensorInt inputIds, object dola_layers, object logitsProcessor, object logitsWarper, object stoppingCriteria, GenerationConfig generationConfig, object streamer, Kwargs modelKwargs) {
+            throw new NotImplementedException();
+        }
+
+        private object ContrastiveSearch(TensorInt inputIds, object logitsProcessor, object stoppingCriteria, GenerationConfig generationConfig, object streamer, Kwargs modelKwargs) {
+            throw new NotImplementedException();
+        }
+
+        private object Sample(TensorInt inputIds, object logitsProcessor, object logitsWarper, object stoppingCriteria, GenerationConfig generationConfig, object streamer, Kwargs modelKwargs) {
+            throw new NotImplementedException();
+        }
+
+        private object BeamSearch(TensorInt inputIds, object beam_scorer, object logitsProcessor, object logitsWarper, object stoppingCriteria, GenerationConfig generationConfig, Kwargs modelKwargs) {
+            throw new NotImplementedException();
+        }
+
+        private object GroupBeamSearch(TensorInt inputIds, object beam_scorer, object logitsProcessor, object stoppingCriteria, GenerationConfig generationConfig, Kwargs modelKwargs) {
+            throw new NotImplementedException();
+        }
+
+        private object ConstrainedBeamSearch(TensorInt inputIds, object constrained_beam_scorer, object logitsProcessor, object stoppingCriteria, GenerationConfig generationConfig, Kwargs modelKwargs) {
+            throw new NotImplementedException();
+        }
+
+        private void ExpandInputsForGeneration(ref TensorInt inputIds, int? expandSize = 1, bool isEncoderDecoder = false, Kwargs modelKwargs = null) {
+            throw new NotImplementedException();
         }
 
         public LogitsProcessorList GetLogitsProcessor(

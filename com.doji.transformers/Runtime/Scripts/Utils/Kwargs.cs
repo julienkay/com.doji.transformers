@@ -20,6 +20,13 @@ namespace Doji.AI.Transformers {
             return defaultValue;
         }
 
+        public T Get<T>(string key, T defaultValue = default) {
+            if (TryGetValue(key, out object value)) {
+                return (T)value;
+            }
+            return (T)defaultValue;
+        }
+
         public object Pop(string key, object defaultVal = default) {
             return Pop(key, defaultVal);
         }
