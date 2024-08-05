@@ -33,6 +33,7 @@ namespace Doji.AI.Transformers {
             TensorInt inputs,
             GenerationConfig generationConfig,
             PreTrainedModel assistantModel = null,
+            object streamer = null,
             PreTrainedTokenizerBase tokenizer = null,
             Kwargs kwargs = null)
         {
@@ -41,8 +42,8 @@ namespace Doji.AI.Transformers {
             //ValidateModelKwargs();
             ValidateAssistant(assistantModel);
 
-            var logitsProcessor = new List<LogitsProcessor>();
-            var stoppingCriteria = new List<LogitsProcessor>();
+            var logitsProcessor = new LogitsProcessorList();
+            var stoppingCriteria = new LogitsProcessorList();
 
             bool acceptsAttentionMask = AcceptsAttentionMask;
             bool requireAttentionMask = !modelKwargs.ContainsKey("encoder_outputs");
@@ -100,6 +101,11 @@ namespace Doji.AI.Transformers {
 
             if (generationConfig.TokenHealing == true) {
                 inputIds = HealTokens(inputIds, tokenizer) as TensorInt;
+            }
+
+            if (streamer != null) {
+                throw new NotImplementedException("streamer.Put()");
+                //streamer.Put(inputIds);
             }
 
             // Prepare `max_length` depending on other stopping criteria.
@@ -178,6 +184,228 @@ namespace Doji.AI.Transformers {
 
             // determine generation mode
             var generationMode = generationConfig.GetGenerationMode(assistantModel);
+
+            if (streamer != null && (generationConfig.NumBeams.Value > 1)) {
+                throw new ArgumentException("`streamer` cannot be used with beam search (yet!). Make sure that `num_beams` is set to 1.");
+            }
+
+            // prepare distribution pre_processing samplers
+            var preparedLogitsProcessor = GetLogitsProcessor(
+                generationConfig,
+                inputIdsLength,
+                encoderInputIds: inputsTensor,
+                prefixAllowedTokensFn: null,
+                logitsProcessor,
+                modelKwargs,
+                negativePromptIds: null,
+                negativePromptAttentionMask: null
+            );
+        }
+
+        public LogitsProcessorList GetLogitsProcessor(
+            GenerationConfig generationConfig,
+            int inputIdsSeqLength,
+            object encoderInputIds,
+            Func<int, List<int>> prefixAllowedTokensFn,
+            LogitsProcessorList logitsProcessor,
+            Dictionary<string, object> modelKwargs = null,
+            object negativePromptIds = null,
+            object negativePromptAttentionMask = null)
+        {
+            LogitsProcessorList processors = new LogitsProcessorList();
+
+            if (generationConfig.GuidanceScale.HasValue && generationConfig.GuidanceScale.Value != 1) {
+                processors.Add(new UnbatchedClassifierFreeGuidanceLogitsProcessor(
+                    generationConfig.GuidanceScale.Value,
+                    this,
+                    negativePromptIds,
+                    negativePromptAttentionMask,
+                    (bool)modelKwargs["use_cache"]
+                ));
+            }
+
+            if (generationConfig.SequenceBias != null) {
+                processors.Add(new SequenceBiasLogitsProcessor(generationConfig.SequenceBias));
+            }
+
+            if (generationConfig.DiversityPenalty.HasValue && generationConfig.DiversityPenalty > 0.0f) {
+                processors.Add(new HammingDiversityLogitsProcessor(
+                    generationConfig.DiversityPenalty.Value,
+                    generationConfig.NumBeams.Value,
+                    generationConfig.NumBeamGroups.Value
+                ));
+            }
+
+            if (generationConfig.EncoderRepetitionPenalty.HasValue && generationConfig.EncoderRepetitionPenalty.Value != 1.0f) {
+                processors.Add(new EncoderRepetitionPenaltyLogitsProcessor(
+                    generationConfig.EncoderRepetitionPenalty.Value,
+                    encoderInputIds
+                ));
+            }
+
+            if (generationConfig.RepetitionPenalty.HasValue && generationConfig.RepetitionPenalty.Value != 1.0f) {
+                processors.Add(new RepetitionPenaltyLogitsProcessor(generationConfig.RepetitionPenalty.Value));
+            }
+
+            if (generationConfig.NoRepeatNgramSize.HasValue && generationConfig.NoRepeatNgramSize > 0) {
+                processors.Add(new NoRepeatNGramLogitsProcessor(generationConfig.NoRepeatNgramSize.Value));
+            }
+
+            if (generationConfig.EncoderNoRepeatNgramSize.HasValue && generationConfig.EncoderNoRepeatNgramSize > 0) {
+                processors.Add(new EncoderNoRepeatNGramLogitsProcessor(
+                    generationConfig.EncoderNoRepeatNgramSize.Value,
+                    encoderInputIds
+                ));
+            }
+
+            if (generationConfig.BadWordsIds != null) {
+                processors.Add(new NoBadWordsLogitsProcessor(
+                    generationConfig.BadWordsIds,
+                    generationConfig.EosTokenTensor
+                ));
+            }
+
+            if (generationConfig.MinLength.HasValue && generationConfig.EosTokenTensor != null && generationConfig.MinLength > 0) {
+                processors.Add(new MinLengthLogitsProcessor(
+                    generationConfig.MinLength.Value,
+                    generationConfig.EosTokenTensor
+                ));
+            }
+
+            if (generationConfig.MinNewTokens.HasValue && generationConfig.EosTokenTensor != null && generationConfig.MinNewTokens > 0) {
+                processors.Add(new MinNewTokensLengthLogitsProcessor(
+                    inputIdsSeqLength,
+                    generationConfig.MinNewTokens.Value,
+                    generationConfig.EosTokenTensor
+                ));
+            }
+
+            if (prefixAllowedTokensFn != null) {
+                processors.Add(new PrefixConstrainedLogitsProcessor(
+                    prefixAllowedTokensFn,
+                    generationConfig.NumBeams.Value / generationConfig.NumBeamGroups.Value
+                ));
+            }
+
+            if (generationConfig.ForcedBosTokenId.HasValue) {
+                processors.Add(new ForcedBOSTokenLogitsProcessor(
+                    generationConfig.ForcedBosTokenId.Value
+                ));
+            }
+
+            if (generationConfig.ForcedEosTokenId.HasValue) {
+                processors.Add(new ForcedEOSTokenLogitsProcessor(
+                    generationConfig.MaxLength.Value,
+                    generationConfig.ForcedEosTokenId.Value
+                ));
+            }
+
+            if (generationConfig.RemoveInvalidValues == true) {
+                processors.Add(new InfNanRemoveLogitsProcessor());
+            }
+
+            if (generationConfig.ExponentialDecayLengthPenalty.HasValue) {
+                processors.Add(new ExponentialDecayLengthPenalty(
+                    generationConfig.ExponentialDecayLengthPenalty.Value,
+                    generationConfig.EosTokenTensor,
+                    inputIdsSeqLength
+                ));
+            }
+
+            if (generationConfig.SuppressTokens != null) {
+                processors.Add(new SuppressTokensLogitsProcessor(
+                    generationConfig.SuppressTokens
+                ));
+            }
+
+            if (generationConfig.BeginSuppressTokens != null) {
+                int beginIndex = inputIdsSeqLength;
+                beginIndex = (inputIdsSeqLength > 1 || generationConfig.ForcedBosTokenId == null) ? beginIndex : beginIndex + 1;
+                if (generationConfig.ForcedDecoderIds != null) {
+                    beginIndex += generationConfig.ForcedDecoderIds.Last()[0];
+                }
+                processors.Add(new SuppressTokensAtBeginLogitsProcessor(
+                    generationConfig.BeginSuppressTokens,
+                    beginIndex
+                ));
+            }
+
+            if (generationConfig.ForcedDecoderIds != null) {
+                // TODO: Deprecate in v4.40
+                Console.WriteLine("You have explicitly specified `forced_decoder_ids`. This functionality has been deprecated and will throw an error in v4.40. Please remove the `forced_decoder_ids` argument in favour of `input_ids` or `decoder_input_ids` respectively.");
+                processors.Add(new ForceTokensLogitsProcessor(generationConfig.ForcedDecoderIds, true));
+            }
+
+            if (generationConfig.WatermarkingConfig != null) {
+                processors.Add(new WatermarkLogitsProcessor(
+                    Config.VocabSize,
+                    generationConfig.WatermarkingConfig.GreenlistRatio,
+                    generationConfig.WatermarkingConfig.Bias,
+                    generationConfig.WatermarkingConfig.HashingKey,
+                    generationConfig.WatermarkingConfig.SeedingScheme,
+                    generationConfig.WatermarkingConfig.ContextWidth
+                ));
+            }
+
+            processors = MergeCriteriaProcessorList(processors, logitsProcessor) as LogitsProcessorList;
+
+            // `LogitNormalization` should always be the last logit processor, when present
+            if (generationConfig.RenormalizeLogits == true) {
+                processors.Add(new LogitNormalization());
+            }
+
+            return processors;
+        }
+
+        public StoppingCriteriaList GetStoppingCriteria(
+           GenerationConfig generationConfig,
+           StoppingCriteriaList stoppingCriteria = null,
+           PreTrainedTokenizerBase tokenizer = null,
+           params object[] kwargs)
+        {
+            var criteria = new StoppingCriteriaList();
+
+            if (generationConfig.MaxLength.HasValue) {
+                var maxPositionEmbeddings = Config.MaxPositionEmbeddings ?? null;
+                criteria.Add(new MaxLengthCriteria(generationConfig.MaxLength.Value, maxPositionEmbeddings));
+            }
+
+            if (generationConfig.MaxTime.HasValue) {
+                criteria.Add(new MaxTimeCriteria(generationConfig.MaxTime.Value));
+            }
+
+            if (generationConfig.StopStrings != null) {
+                if (tokenizer == null) {
+                    throw new ArgumentException("There are one or more stop strings, either in the arguments to `generate` or in the model's generation config, but we could not locate a tokenizer. When generating with stop strings, you must pass the model's tokenizer to the `tokenizer` argument of `generate`.");
+                }
+                criteria.Add(new StopStringCriteria(tokenizer, generationConfig.StopStrings));
+            }
+
+            if (generationConfig.EosTokenTensor != null) {
+                criteria.Add(new EosTokenCriteria(generationConfig.EosTokenId));
+            }
+
+            return MergeCriteriaProcessorList(criteria, stoppingCriteria) as StoppingCriteriaList;
+        }
+
+        public List<T> MergeCriteriaProcessorList<T>(List<T> defaultList, List<T> customList) {
+            if (customList.Count == 0) {
+                return defaultList;
+            }
+
+            foreach (var defaultItem in defaultList) {
+                foreach (var customItem in customList) {
+                    if (customItem.GetType() == defaultItem.GetType()) {
+                        string objectType = customItem is StoppingCriteria ? "stopping criteria" : "logits processor";
+                        throw new ArgumentException(
+                            $"A custom {objectType} of type {customItem.GetType()} with values {customItem} has been passed to `.generate()`, but it has already been created with the values {defaultItem}. {defaultItem} has been created by passing the corresponding arguments to generate or by the model's config default values. If you just want to change the default values of {objectType} consider passing them as arguments to `.generate()` instead of using a custom {objectType}."
+                        );
+                    }
+                }
+            }
+
+            defaultList.AddRange(customList);
+            return defaultList;
         }
 
         private void ValidateAssistant(object assistantModel) {

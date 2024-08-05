@@ -6,6 +6,23 @@ using Unity.Sentis;
 
 namespace Doji.AI.Transformers {
 
+    public class WatermarkingConfig {
+        [JsonProperty("greenlist_ratio")]
+        public float GreenlistRatio { get; set; }
+
+        [JsonProperty("bias")]
+        public float Bias { get; set; }
+
+        [JsonProperty("hashing_key")]
+        public int HashingKey { get; set; }
+
+        [JsonProperty("seeding_scheme")]
+        public string SeedingScheme { get; set; }
+
+        [JsonProperty("context_width")]
+        public int ContextWidth { get; set; }
+    }
+
     public partial class GenerationConfig {
 
         /* Parameters that control the length of the output */
@@ -29,7 +46,7 @@ namespace Doji.AI.Transformers {
         public float? MaxTime { get; set; }
 
         [JsonProperty("stop_strings")]
-        public string StopStrings { get; set; }
+        public List<string> StopStrings { get; set; }
 
 
         /* Parameters that control the generation strategy used */
@@ -132,7 +149,10 @@ namespace Doji.AI.Transformers {
 
         [JsonProperty("low_memory")]
         public bool? LowMemory { get; set; }
-
+        
+        [JsonProperty("watermarking_config")]
+        //TODO: custom convert in case its passed as dict
+        public WatermarkingConfig WatermarkingConfig { get; set; }
 
         /*  Parameters that define the output variables of generate */
 
@@ -293,6 +313,7 @@ namespace Doji.AI.Transformers {
             TokenHealing = false;
             GuidanceScale = null;
             LowMemory = null;
+            WatermarkingConfig = null;
 
             // Parameters that define the output variables of `generate`
             NumReturnSequences = 1;
