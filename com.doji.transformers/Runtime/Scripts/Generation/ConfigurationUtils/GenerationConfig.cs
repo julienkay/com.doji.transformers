@@ -91,7 +91,7 @@ namespace Doji.AI.Transformers {
         /* Parameters for manipulation of the model output logits */
 
         [JsonProperty("temperature")]
-        public float Temperature { get; set; }
+        public float? Temperature { get; set; }
 
         [JsonProperty("top_k")]
         public int? TopK { get; set; }
@@ -106,7 +106,7 @@ namespace Doji.AI.Transformers {
         public float? TypicalP { get; set; }
 
         [JsonProperty("epsilon_cutoff")]
-        public float EpsilonCutoff { get; set; }
+        public float? EpsilonCutoff { get; set; }
 
         [JsonProperty("eta_cutoff")]
         public float? EtaCutoff { get; set; }

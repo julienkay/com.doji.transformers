@@ -23,7 +23,7 @@ namespace Doji.AI.Transformers {
         private Cache _cache;
 
         protected virtual void PrepareInputsForGeneration() {
-            throw new NotImplementedException("A model class needs to define a `prepare_inputs_for_generation` method in order to use `.generate()`.");
+            throw new NotImplementedException($"A model class needs to define a {nameof(PrepareInputsForGeneration)} method in order to use `.Generate()`.");
         }
 
         /// <summary>
@@ -250,7 +250,7 @@ namespace Doji.AI.Transformers {
                 );
             } else if (generationMode == GenerationMode.DOLA_GENERATION) {
                 if (IsStateful) {
-                    throw new ArgumentException("dola decoding is not supported with stateful models, such as " + this.GetType().Name);
+                    throw new ArgumentException("dola decoding is not supported with stateful models, such as " + GetType().Name);
                 }
                 var preparedLogitsWarper = generationConfig.DoSample
                     ? GetLogitsWarper(generationConfig)
@@ -271,7 +271,7 @@ namespace Doji.AI.Transformers {
                     throw new ArgumentException("Contrastive search requires `use_cache=True`");
                 }
                 if (IsStateful) {
-                    throw new ArgumentException("contrastive search is not supported with stateful models, such as " + this.GetType().Name);
+                    throw new ArgumentException("contrastive search is not supported with stateful models, such as " + GetType().Name);
                 }
 
                 var result = ContrastiveSearch(
@@ -445,14 +445,66 @@ namespace Doji.AI.Transformers {
                     );*/
                 }
             }
+
+            // Convert to legacy cache if needed
+            /*if (useDynamicCacheByDefault && generationConfig.ReturnLegacyCache) {
+                if isinstance(result, ModelOutput) and hasattr(result, "past_key_values"):
+                if isinstance(result.past_key_values, (DynamicCache, EncoderDecoderCache)):
+                    result.past_key_values = result.past_key_values.to_legacy_cache()
+            }
+            return result*/
         }
 
         private object GetCandidateGenerator(GenerationConfig generationConfig, TensorInt inputIds, TensorInt inputsTensor, object assistantModel, object logitsProcessor, Kwargs modelKwargs) {
             throw new NotImplementedException();
         }
 
-        private object GetLogitsWarper(GenerationConfig generationConfig) {
-            throw new NotImplementedException();
+        /// <summary>
+        /// This class returns a <see cref="LogitsProcessorList"/>list object that contains all relevant
+        /// [`LogitsWarper`] instances used for multinomial sampling.
+        /// </summary>
+        private LogitsProcessorList GetLogitsWarper(GenerationConfig generationConfig) {
+            // instantiate warpers list
+            LogitsProcessorList warpers = new LogitsProcessorList();
+
+            // In beam methods, we need to keep at least one non-eos token to explore continuations that might have a
+            // better score (i.e. keep len(list(generationConfig.EosTokenTensor)) + 1)
+            int minTokensToKeep;
+            if (generationConfig.NumBeams > 1) {
+                minTokensToKeep = generationConfig.EosTokenTensor.shape[0] + 1;
+            } else {
+                minTokensToKeep = 1;
+            }
+
+            // the following idea is largely copied from this PR: https://github.com/huggingface/transformers/pull/5420/files
+            // all samplers can be found in `generation_utils_samplers.py`
+            if (generationConfig.Temperature != null && generationConfig.Temperature != 1.0f) {
+                warpers.Add(new TemperatureLogitsWarper(generationConfig.Temperature.Value));
+            }
+            if (generationConfig.TopK != null && generationConfig.TopK != 0) {
+                warpers.Add(new TopKLogitsWarper(generationConfig.TopK.Value, minTokensToKeep));
+            }
+            if (generationConfig.TopP != null && generationConfig.TopP < 1.0f) {
+                warpers.Add(new TopPLogitsWarper(generationConfig.TopP.Value, minTokensToKeep));
+            }
+            if (generationConfig.MinP != null) {
+                // Applied after temperature scaling (see https://github.com/ggerganov/llama.cpp/pull/3841#issuecomment-2073826084)
+                warpers.Add(new MinPLogitsWarper(generationConfig.MinP.Value, minTokensToKeep));
+            }
+            if (generationConfig.TypicalP != null && generationConfig.TypicalP < 1.0) {
+                warpers.Add(new TypicalLogitsWarper(generationConfig.TypicalP.Value, minTokensToKeep));
+            }
+            if (generationConfig.EpsilonCutoff != null && generationConfig.EpsilonCutoff > 0.0 && generationConfig.EpsilonCutoff < 1.0) {
+                warpers.Add(new EpsilonLogitsWarper(generationConfig.EpsilonCutoff.Value, minTokensToKeep));
+            }
+            if (generationConfig.EtaCutoff != null && generationConfig.EtaCutoff > 0.0 && generationConfig.EtaCutoff < 1.0) {
+                warpers.Add(new EtaLogitsWarper(generationConfig.EtaCutoff.Value, minTokensToKeep));
+            }
+            // `LogitNormalization` should always be the last logit processor, when present
+            if (generationConfig.RenormalizeLogits == true) {
+                warpers.Add(new LogitNormalization());
+            }
+            return warpers;
         }
 
         private object AssistedDecoding(TensorInt inputIds, object candidateGenerator, object logitsProcessor, object logitsWarper, object stoppingCriteria, GenerationConfig generationConfig, object streamer, Kwargs modelKwargs) {
@@ -682,7 +734,7 @@ namespace Doji.AI.Transformers {
                     if (customItem.GetType() == defaultItem.GetType()) {
                         string objectType = customItem is StoppingCriteria ? "stopping criteria" : "logits processor";
                         throw new ArgumentException(
-                            $"A custom {objectType} of type {customItem.GetType()} with values {customItem} has been passed to `.generate()`, but it has already been created with the values {defaultItem}. {defaultItem} has been created by passing the corresponding arguments to generate or by the model's config default values. If you just want to change the default values of {objectType} consider passing them as arguments to `.generate()` instead of using a custom {objectType}."
+                            $"A custom {objectType} of type {customItem.GetType()} with values {customItem} has been passed to `.Generate()`, but it has already been created with the values {defaultItem}. {defaultItem} has been created by passing the corresponding arguments to generate or by the model's config default values. If you just want to change the default values of {objectType} consider passing them as arguments to `.Generate()` instead of using a custom {objectType}."
                         );
                     }
                 }
@@ -747,7 +799,7 @@ namespace Doji.AI.Transformers {
 
                     if (!hasInputsEmbedsForwarding) {
                         throw new ArgumentException(
-                            $"You passed `inputs_embeds` to `.generate()`, but the model class {this.GetType().Name} " +
+                            $"You passed `inputs_embeds` to `.Generate()`, but the model class {GetType().Name} " +
                             "doesn't have its forwarding implemented. See the GPT2 implementation for an example " +
                             "(https://github.com/huggingface/transformers/pull/21405), and feel free to open a PR with it!"
                         );
@@ -758,7 +810,7 @@ namespace Doji.AI.Transformers {
 
                 } else {
                     if (inputs != null) {
-                        throw new ArgumentException("You passed `inputs_embeds` and `input_ids` to `.generate()`. Please pick one.");
+                        throw new ArgumentException("You passed `inputs_embeds` and `input_ids` to `.Generate()`. Please pick one.");
                     }
                 }
 
