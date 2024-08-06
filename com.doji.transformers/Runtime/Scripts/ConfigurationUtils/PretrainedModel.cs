@@ -42,7 +42,8 @@ namespace Doji.AI.Transformers {
         /// </summary>
         private Model _model;
         protected IWorker _worker;
-        private IBackend _ops;
+        private IBackend _backend;
+        private Ops _ops;
 
         public PreTrainedModel(Model model, PretrainedConfig config, BackendType backend) : base(config) {
             Backend = backend;
@@ -56,11 +57,12 @@ namespace Doji.AI.Transformers {
 
             _model = model;
             _worker = WorkerFactory.CreateWorker(Backend, _model);
-            _ops = WorkerFactory.CreateBackend(Backend);
+            _backend = WorkerFactory.CreateBackend(Backend);
         }
 
         public virtual void Dispose() {
             _worker?.Dispose();
+            _backend?.Dispose();
             _ops?.Dispose();
         }
 

@@ -291,7 +291,7 @@ namespace Doji.AI.Transformers {
                 // 12. expand inputIds with `num_return_sequences` additional sequences per batch
                 ExpandInputsForGeneration(
                     ref inputIds,
-                    generationConfig.NumReturnSequences,
+                    generationConfig.NumReturnSequences.Value,
                     Config.IsEncoderDecoder,
                     modelKwargs
                 );
@@ -325,7 +325,7 @@ namespace Doji.AI.Transformers {
                 // 13. interleave inputIds with `num_beams` additional sequences per batch
                 ExpandInputsForGeneration(
                     ref inputIds,
-                    generationConfig.NumBeams,
+                    generationConfig.NumBeams.Value,
                     Config.IsEncoderDecoder,
                     modelKwargs
                 );
@@ -355,7 +355,7 @@ namespace Doji.AI.Transformers {
                 // 12. interleave inputIds with `num_beams` additional sequences per batch
                 ExpandInputsForGeneration(
                     ref inputIds,
-                    generationConfig.NumBeams,
+                    generationConfig.NumBeams.Value,
                     Config.IsEncoderDecoder,
                     modelKwargs
                 );
@@ -535,8 +535,39 @@ namespace Doji.AI.Transformers {
             throw new NotImplementedException();
         }
 
-        private void ExpandInputsForGeneration(ref TensorInt inputIds, int? expandSize = 1, bool isEncoderDecoder = false, Kwargs modelKwargs = null) {
-            throw new NotImplementedException();
+        /// <summary>
+        /// Expands tensors from [batch_size, ...] to [batch_size * expand_size, ...]
+        /// </summary>
+        private void ExpandInputsForGeneration(
+            ref TensorInt inputIds,
+            int expandSize = 1,
+            bool isEncoderDecoder = false,
+            Kwargs modelKwargs = null)
+        {
+            if (inputIds != null && expandSize > 1) {
+                inputIds = _ops.RepeatInterleave(inputIds, expandSize, dim: 0);
+            }
+
+            ExpandDictForGeneration(modelKwargs, expandSize);
+
+            if (isEncoderDecoder) {
+                if (modelKwargs.Get("encoder_outputs") == null) {
+                    throw new ArgumentException("If `is_encoder_decoder` is True, make sure that `encoder_outputs` is defined.");
+                }
+                ExpandDictForGeneration(modelKwargs["encoder_outputs"] as Dictionary<string, object>, expandSize);
+            }
+        }
+
+        private void ExpandDictForGeneration(Dictionary<string, object> dictToExpand, int expandSize) {
+            foreach (var kvp in dictToExpand) {
+                var key = kvp.Key;
+                if (key != "cache_position"
+                    && dictToExpand[key] != null
+                    && dictToExpand[key] is Tensor)
+                {
+                    dictToExpand[key] = _ops.RepeatInterleave(dictToExpand[key] as TensorInt, expandSize, dim: 0);
+                }
+            }
         }
 
         public LogitsProcessorList GetLogitsProcessor(
@@ -867,7 +898,7 @@ namespace Doji.AI.Transformers {
             using TensorInt ones = Ones<TensorInt>(new TensorShape(batch_size, 1));
             TensorInt mul = TensorInt.AllocNoData(ones.shape);
 
-            _ops.Mul(ones, bos, mul);
+            _backend.Mul(ones, bos, mul);
             inputs = mul;
         }
 

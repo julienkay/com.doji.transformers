@@ -14,10 +14,7 @@ namespace Doji.AI.Transformers {
         public Kwargs() : base() { }
 
         public object Get(string key, object defaultValue = null) {
-            if (TryGetValue(key, out object value)) {
-                return value;
-            }
-            return defaultValue;
+            return this.GetValueOrDefault(key, defaultValue);
         }
 
         public T Get<T>(string key, T defaultValue = default) {
