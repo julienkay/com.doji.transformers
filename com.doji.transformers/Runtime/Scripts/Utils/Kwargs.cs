@@ -10,7 +10,7 @@ namespace Doji.AI.Transformers {
     /// </summary>
     public class Kwargs : Dictionary<string, object>, ICollection, IDictionary {
 
-        public Kwargs(IDictionary<string, object> dictionary) : base(dictionary) { }
+        public Kwargs(IEnumerable<KeyValuePair<string, object>> collection) : base(collection) { }
         public Kwargs() : base() { }
 
         public object Get(string key, object defaultValue = null) {
@@ -24,16 +24,20 @@ namespace Doji.AI.Transformers {
             if (TryGetValue(key, out object value)) {
                 return (T)value;
             }
-            return (T)defaultValue;
+            return defaultValue;
         }
 
         public object Pop(string key, object defaultVal = default) {
-            return Pop(key, defaultVal);
+            if (TryGetValue(key, out object val)) {
+                Remove(key);
+                return val;
+            } else {
+                return defaultVal;
+            }
         }
 
         public Kwargs Where(Func<KeyValuePair<string, object>, bool> predicate) {
-            var filtered = Where(predicate);
-            return new Kwargs(filtered.ToDictionary(kvp => kvp.Key, kvp => kvp.Value));
+            return new Kwargs(this.AsEnumerable().Where(predicate));
         }
-    }
+     }
 }
