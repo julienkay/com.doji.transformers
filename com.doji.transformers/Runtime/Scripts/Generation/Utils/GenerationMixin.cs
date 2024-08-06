@@ -562,8 +562,8 @@ namespace Doji.AI.Transformers {
         }
 
         private void ExpandDictForGeneration(Dictionary<string, object> dictToExpand, int expandSize) {
-            foreach (var kvp in dictToExpand) {
-                var key = kvp.Key;
+            List<string> keys = new List<string>(dictToExpand.Keys);
+            foreach (var key in keys) {
                 if (key != "cache_position"
                     && dictToExpand[key] != null
                     && dictToExpand[key] is Tensor)
