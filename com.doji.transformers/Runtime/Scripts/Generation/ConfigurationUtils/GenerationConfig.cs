@@ -353,6 +353,14 @@ namespace Doji.AI.Transformers {
             FromModelConfig = false;
         }
 
+        public static GenerationConfig Deserialize(string json) {
+            return JsonConvert.DeserializeObject<GenerationConfig>(json);
+        }
+
+        public string Serialize() {
+            return JsonConvert.SerializeObject(this);
+        }
+
         /// <summary>
         /// Returns the generation mode triggered by the [`GenerationConfig`] instance.
         /// </summary>
