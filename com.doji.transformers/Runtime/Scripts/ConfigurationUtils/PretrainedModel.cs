@@ -2,6 +2,7 @@ using System.IO;
 using System;
 using Unity.Sentis;
 using UnityEngine;
+using System.Collections.Generic;
 
 namespace Doji.AI.Transformers {
 
@@ -66,6 +67,8 @@ namespace Doji.AI.Transformers {
             _backend?.Dispose();
             _ops?.Dispose();
         }
+
+        public abstract ModelOutput Execute(Dictionary<string, Tensor> modelInputs);
 
         /// <summary>
         /// Loads a Sentis <see cref="Model"/> from a <see cref="ModelAsset"/> in Resources.

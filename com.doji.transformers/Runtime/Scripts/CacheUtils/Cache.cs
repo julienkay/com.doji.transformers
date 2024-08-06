@@ -1,6 +1,7 @@
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using Unity.Sentis;
 
 namespace Doji.AI.Transformers {
     public abstract class Cache {
@@ -8,6 +9,12 @@ namespace Doji.AI.Transformers {
         public int? MaxCacheLen { get; private set; }
 
         public virtual void Reset() { }
+        /// <summary>
+        /// Returns the sequence length of the cached states."
+        /// </summary>
+        public virtual int GetSeqLength(int? layerIdx = 0) {
+            throw new NotImplementedException($"Make sure to implement {nameof(GetSeqLength)} in subclass '{GetType()}'.");
+        }
     }
     /// <summary>
     /// Base class for cache configs
@@ -53,6 +60,13 @@ namespace Doji.AI.Transformers {
         }
     }
     public class DynamicCache : Cache {
+
+        public List<Tensor> KeyCache { get; set; }
+
+        public DynamicCache() : base() {
+            KeyCache = new List<Tensor>();
+        }
+
         /// <summary>
         /// Converts a cache in the legacy cache format into an equivalent <see cref="DynamicCache"/>.
         /// Used for backward compatibility.
@@ -60,6 +74,12 @@ namespace Doji.AI.Transformers {
         public static Cache FromLegacyCache(string cls) {
             Type clsType = Type.GetType(cls);
             return Activator.CreateInstance(clsType) as Cache;
+        }
+        public override int GetSeqLength(int? layerIdx = 0) {
+            if (KeyCache.Count <= layerIdx) {
+                return 0;
+            }
+            return KeyCache[layerIdx.Value].shape[-2];
         }
     }
     public class OffloadedCache : DynamicCache { }

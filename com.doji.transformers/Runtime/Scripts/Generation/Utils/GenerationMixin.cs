@@ -22,7 +22,7 @@ namespace Doji.AI.Transformers {
 
         private Cache _cache;
 
-        protected virtual void PrepareInputsForGeneration() {
+        protected virtual Dictionary<string, Tensor> PrepareInputsForGeneration(TensorInt inputIds, Kwargs kwargs) {
             throw new NotImplementedException($"A model class needs to define a {nameof(PrepareInputsForGeneration)} method in order to use `.Generate()`.");
         }
 
@@ -174,8 +174,8 @@ namespace Doji.AI.Transformers {
                 } else {
                     modelKwargs[cacheName] =
                           !requires_cross_attention_cache ?
-                            DynamicCache.FromLegacyCache(past) :
-                            EncoderDecoderCache.FromLegacyCache(past);
+                          DynamicCache.FromLegacyCache(past) :
+                          EncoderDecoderCache.FromLegacyCache(past);
                     useDynamicCacheByDefault = true;
                 }
             }
@@ -519,8 +519,149 @@ namespace Doji.AI.Transformers {
             throw new NotImplementedException();
         }
 
-        private object Sample(TensorInt inputIds, object logitsProcessor, object logitsWarper, object stoppingCriteria, GenerationConfig generationConfig, object streamer, Kwargs modelKwargs) {
-            throw new NotImplementedException();
+        /// <summary>
+        /// Generates sequences of token ids for models with a language modeling head using **multinomial sampling** and
+        /// can be used for text-decoder, text-to-text, speech-to-text, and vision-to-text models.
+        /// </summary>
+        private GenerateDecoderOnlyOutput Sample(
+            TensorInt inputIds,
+            LogitsProcessorList logitsProcessor,
+            LogitsProcessorList logitsWarper,
+            StoppingCriteriaList stoppingCriteria,
+            GenerationConfig generationConfig,
+            object streamer,
+            Kwargs modelKwargs)
+        {
+            // Initialize values
+            Tensor padTokenId = generationConfig.PadTokenTensor;
+            bool outputAttentions = generationConfig.OutputAttentions.Value;
+            bool outputHiddenStates = generationConfig.OutputHiddenStates.Value;
+            bool outputScores = generationConfig.OutputScores.Value;
+            bool outputLogits = generationConfig.OutputLogits.Value;
+            bool returnDictInGenerate = generationConfig.ReturnDictInGenerate.Value;
+            int maxLength = generationConfig.MaxLength.Value;
+            bool hasEosStoppingCriteria = stoppingCriteria.Any(criteria => criteria is EosTokenCriteria);
+            bool doSample = generationConfig.DoSample;
+
+            if (doSample && logitsWarper == null) {
+                throw new ArgumentException("`do_sample` is set to `True`, `logitsWarper` must be provided.");
+            }
+
+            // Initialize attention / hidden states / scores tuples
+            List<Tensor> scores = returnDictInGenerate && outputScores ? new List<Tensor>() : null;
+            List<TensorFloat> rawLogits = returnDictInGenerate && outputLogits ? new List<TensorFloat>() : null;
+            List<Tensor> decoderAttentions = returnDictInGenerate && outputAttentions ? new List<Tensor>() : null;
+            List<Tensor> crossAttentions = returnDictInGenerate && outputAttentions ? new List<Tensor>() : null;
+            List<Tensor> decoderHiddenStates = returnDictInGenerate && outputHiddenStates ? new List<Tensor>() : null;
+
+            // If model is an encoder-decoder, retrieve encoder attention weights and hidden states
+            Dictionary<string, Tensor> encoderOutputs = Config.IsEncoderDecoder && modelKwargs.ContainsKey("encoder_outputs")
+                ? (Dictionary<string, Tensor>)modelKwargs["encoder_outputs"]
+                : null;
+
+            Tensor encoderAttentions = outputAttentions ? encoderOutputs?.GetValueOrDefault("attentions") : null;
+            Tensor encoderHiddenStates = outputHiddenStates ? encoderOutputs?.GetValueOrDefault("hidden_states") : null;
+
+            // Keep track of which sequences are already finished
+            int batchSize = inputIds.shape[0];
+            int curLen = inputIds.shape[1];
+            bool finished = false;
+            TensorInt unfinishedSequences = Ones<TensorInt>(new TensorShape(batchSize));
+            GetInitialCachePosition(inputIds, modelKwargs);
+
+            while (!finished) {
+                // Prepare model inputs
+                var modelInputs = PrepareInputsForGeneration(inputIds, modelKwargs);
+
+                // Prepare variable output controls
+                //if (outputAttentions)
+                //    modelInputs["output_attentions"] = outputAttentions;
+                //if (outputHiddenStates)
+                //    modelInputs["output_hidden_states"] = outputHiddenStates;
+
+                // Forward pass to get next token
+                var outputs = Execute(modelInputs);
+
+                if (finished)
+                    continue; // Don't waste resources running unnecessary code
+
+                // outputs["logits"][:, -1, :]
+                var shape = (outputs["logits"] as TensorFloat).shape;
+                Log.Info((outputs["logits"] as TensorFloat).shape);
+                TensorFloat nextTokenLogits = _ops.Slice(outputs["logits"] as TensorFloat, starts: new int[] { 0, shape[1] - 1, 0}, ends: new int[] { }, axes: null, steps: new int[] { shape[0], 1, shape[3] });
+
+                // Pre-process distribution
+                var nextTokenScores = logitsProcessor.Apply(inputIds, nextTokenLogits);
+                if (doSample) {
+                    nextTokenScores = logitsWarper.Apply(inputIds, nextTokenScores);
+                }
+
+                // Store scores, attentions and hidden_states when required
+                if (returnDictInGenerate) {
+                    if (outputScores)
+                        scores.Add(nextTokenScores);
+                    if (outputLogits)
+                        rawLogits.Add(nextTokenLogits);
+                    if (outputAttentions) {
+                        decoderAttentions.Add(Config.IsEncoderDecoder ? outputs["decoder_attentions"] as Tensor : outputs["attentions"] as Tensor);
+                        if (Config.IsEncoderDecoder)
+                            crossAttentions.Add(outputs["cross_attentions"] as Tensor);
+                    }
+                    if (outputHiddenStates) {
+                        decoderHiddenStates.Add(Config.IsEncoderDecoder ? outputs["decoder_hidden_states"] as Tensor : outputs["hidden_states"] as Tensor);
+                    }
+                }
+
+                // Token selection
+                Tensor nextTokens;
+                if (doSample) {
+                    var probs = _ops.Softmax(nextTokenScores, axis: -1);
+                    throw new NotImplementedException("tf.random.categorical");
+                    //nextTokens = tf.random.categorical(probs, num_samples: 1).squeeze(axis: 1);
+                } else {
+                    nextTokens = _ops.ArgMax(nextTokenScores, axis: -1);
+                }
+
+                // Finished sentences should have their next token be a padding token
+                if (hasEosStoppingCriteria) {
+                    //__+++____nextTokens = np.where(unfinishedSequences == 1, nextTokens, padTokenId);
+                }
+
+                // Update generated ids, model inputs, and length for next step
+                //__+++____inputIds = tf.concat(new[] { inputIds, nextTokens[:, tf.newaxis] }, axis: -1);
+                //streamer?.Put(nextTokens);
+                //__+++____modelKwargs = UpdateModelKwargsForGeneration(outputs, modelKwargs, model.config.IsEncoderDecoder);
+
+                //__+++____unfinishedSequences = np.bitwise_and(unfinishedSequences, ~stoppingCriteria.Check(inputIds, scores));
+                //__+++____finished = np.max(unfinishedSequences) == 0;
+                curLen += 1;
+            }
+
+            //streamer?.End();
+
+            if (Config.IsEncoderDecoder) {
+                throw new NotImplementedException();
+                /*return new GenerateEncoderDecoderOutput {
+                    Sequences = inputIds,
+                    Scores = scores,
+                    Logits = rawLogits,
+                    EncoderAttentions = encoderAttentions,
+                    EncoderHiddenStates = encoderHiddenStates,
+                    DecoderAttentions = decoderAttentions,
+                    CrossAttentions = crossAttentions,
+                    DecoderHiddenStates = decoderHiddenStates,
+                    PastKeyValues = modelKwargs.GetValueOrDefault("past_key_values")
+                };*/
+            } else {
+                return new GenerateDecoderOnlyOutput {
+                    Sequences = inputIds,
+                    Scores = scores,
+                    Logits = rawLogits,
+                    Attentions = decoderAttentions,
+                    HiddenStates = decoderHiddenStates,
+                    PastKeyValues = modelKwargs.GetValueOrDefault("past_key_values")
+                };
+            }
         }
 
         private object BeamSearch(TensorInt inputIds, object beam_scorer, object logitsProcessor, object logitsWarper, object stoppingCriteria, GenerationConfig generationConfig, Kwargs modelKwargs) {
@@ -1079,6 +1220,44 @@ namespace Doji.AI.Transformers {
             }
 
             return generationConfig;
+        }
+
+        /// <summary>
+        /// Calculates `cache_position` for the pre-fill stage based on `input_ids` and optionally past length
+        /// </summary>
+        private void GetInitialCachePosition(TensorInt inputIds, Kwargs modelKwargs) {
+            // `torch.arange` from a shape -- the lines below are equivalent to `torch.arange`
+            TensorInt inputEmbeds = modelKwargs.Get("inputs_embeds") as TensorInt;
+            TensorInt cachePosition;
+            if (inputEmbeds != null) {
+                var shape = inputEmbeds.shape;
+                shape[0] = shape[2] = 0;
+                cachePosition = Ones<TensorInt>(shape);
+                cachePosition = _ops.CumSum(cachePosition, 0);
+                cachePosition = _ops.Sub(cachePosition, 1);
+            } else {
+                var shape = inputIds.shape;
+                shape[0] = 0;
+                cachePosition = Ones<TensorInt>(shape);
+                cachePosition = _ops.CumSum(cachePosition, 0);
+                cachePosition = _ops.Sub(cachePosition, 1);
+            }
+            int pastLength;
+            if (modelKwargs.Get("past_key_values") != null) {
+                Cache cache = modelKwargs.Get<Cache>("past_key_values");
+                pastLength = 0;
+                if (cache is not Cache) {
+                    throw new NotImplementedException();
+                    //past_length = cache[0][0].shape[2]
+                } else {
+                    pastLength = cache.GetSeqLength();
+                }
+                Log.Info(pastLength);
+                Log.Info(cachePosition.shape);
+                //throw new NotImplementedException();
+                //cachePosition = cachePosition[past_length:]
+            }
+            modelKwargs["cache_position"] = cachePosition;
         }
 
         /// <summary>

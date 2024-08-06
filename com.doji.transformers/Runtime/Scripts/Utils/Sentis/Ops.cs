@@ -142,6 +142,30 @@ namespace Doji.AI.Transformers {
             return O;
         }
 
+        public TensorInt Sub(TensorInt A, int b) {
+            var O = TensorIntAllocNoData(A.shape);
+            if (O.shape.HasZeroDims())
+                return O;
+            _backend.ScalarMad(A, O, 1, -b);
+            return O;
+        }
+
+        public TensorInt Sub(int a, TensorInt B) {
+            var O = TensorIntAllocNoData(B.shape);
+            if (O.shape.HasZeroDims())
+                return O;
+            _backend.ScalarMad(B, O, -1, a);
+            return O;
+        }
+
+        public TensorInt Sub(TensorInt A, TensorInt B) {
+            var O = TensorIntAllocNoData(TensorShapeHelper.BroadcastShape(A, B));
+            if (O.shape.HasZeroDims())
+                return O;
+            _backend.Sub(A, B, O);
+            return O;
+        }
+
         public TensorFloat Add(TensorFloat A, float b) {
             var O = TensorFloatAllocNoData(A.shape);
             if (O.shape.HasZeroDims())
@@ -287,6 +311,14 @@ namespace Doji.AI.Transformers {
             return O;
         }
 
+        public T Slice<T>(T X, ReadOnlySpan<int> starts, ReadOnlySpan<int> ends, ReadOnlySpan<int> axes, ReadOnlySpan<int> steps) where T : Tensor {
+            var O = AllocNoData(X.shape.Slice(starts, ends, axes, steps), X.dataType) as T;
+            if (O.shape.HasZeroDims())
+                return O;
+            _backend.Slice(X, O, starts, axes, steps);
+            return O;
+        }
+
         public TensorInt GreaterOrEqual(TensorFloat A, TensorFloat B) {
             var O = TensorIntAllocNoData(TensorShapeHelper.BroadcastShape(A, B));
             if (O.shape.HasZeroDims())
@@ -300,6 +332,14 @@ namespace Doji.AI.Transformers {
             if (O.shape.HasZeroDims())
                 return O;
             _backend.GreaterOrEqual(A, B, O);
+            return O;
+        }
+
+        public TensorFloat Softmax(TensorFloat X, int axis = -1) {
+            var O = TensorFloatAllocNoData(X.shape);
+            if (O.shape.HasZeroDims())
+                return O;
+            _backend.Softmax(X, O, axis);
             return O;
         }
 

@@ -20,6 +20,12 @@ namespace Doji.AI.Transformers {
             return FromPretrained<Phi3ForCausalLM>(model, backend);
         }
 
+        public override ModelOutput Execute(Dictionary<string, Tensor> modelInputs) {
+            _worker.Execute(modelInputs);
+            var logits = _worker.PeekOutput("logits") as TensorFloat;
+            return new CausalLMOutputWithPast(logits);
+        }
+
         public TensorFloat Execute(TensorInt inputIds, TensorInt attentionMask, TensorInt positionIds) {
             _inputs["input_ids"] = inputIds;
             _inputs["attention_mask"] = attentionMask;
