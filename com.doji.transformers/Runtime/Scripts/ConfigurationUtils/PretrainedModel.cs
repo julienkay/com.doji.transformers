@@ -58,6 +58,7 @@ namespace Doji.AI.Transformers {
             _model = model;
             _worker = WorkerFactory.CreateWorker(Backend, _model);
             _backend = WorkerFactory.CreateBackend(Backend);
+            _ops = new Ops(Backend);
         }
 
         public virtual void Dispose() {

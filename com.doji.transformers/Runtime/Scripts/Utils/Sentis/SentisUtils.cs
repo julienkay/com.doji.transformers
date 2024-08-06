@@ -52,7 +52,7 @@ namespace Doji.AI.Transformers {
                 throw new ArgumentException($"Repeat count must be greater than zero, was {repeats}.", nameof(repeats));
             }
             if (tensor.shape.rank > 1) {
-                throw new ArgumentException($"RepeatInterleave not supported yet for tensors with rank > 1");
+                throw new ArgumentException($"RepeatInterleave not supported yet for tensors with rank > 1. Shape was {tensor.shape}");
             }
 
             // implement repeat_interleave using repeat, reshape & transpose ops
@@ -73,7 +73,7 @@ namespace Doji.AI.Transformers {
                 throw new ArgumentException($"Repeat count must be greater than zero, was {repeats}.", nameof(repeats));
             }
             if (tensor.shape.rank > 1) {
-                throw new ArgumentException($"RepeatInterleave not supported yet for tensors with rank > 1");
+                throw new ArgumentException($"RepeatInterleave not supported yet for tensors with rank > 1. Shape was {tensor.shape}");
             }
 
             // implement repeat_interleave using repeat, reshape & transpose ops

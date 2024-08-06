@@ -545,7 +545,10 @@ namespace Doji.AI.Transformers {
             Kwargs modelKwargs = null)
         {
             if (inputIds != null && expandSize > 1) {
+                //TODO: RepeatInterleave needs to properly support arbitrary shapes
+                inputIds.Reshape(new TensorShape(inputIds.shape[1]));
                 inputIds = _ops.RepeatInterleave(inputIds, expandSize, dim: 0);
+                inputIds.Reshape(new TensorShape(expandSize, inputIds.shape[1]));
             }
 
             ExpandDictForGeneration(modelKwargs, expandSize);
@@ -565,7 +568,10 @@ namespace Doji.AI.Transformers {
                     && dictToExpand[key] != null
                     && dictToExpand[key] is Tensor)
                 {
-                    dictToExpand[key] = _ops.RepeatInterleave(dictToExpand[key] as TensorInt, expandSize, dim: 0);
+                    TensorInt tensor = dictToExpand[key] as TensorInt;
+                    tensor.Reshape(new TensorShape(tensor.shape[1]));
+                    dictToExpand[key] = _ops.RepeatInterleave(tensor, expandSize, dim: 0);
+                    tensor.Reshape(new TensorShape(expandSize, tensor.shape[1]));
                 }
             }
         }
