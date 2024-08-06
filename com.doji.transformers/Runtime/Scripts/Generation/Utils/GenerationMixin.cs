@@ -38,7 +38,7 @@ namespace Doji.AI.Transformers {
             Kwargs kwargs = null)
         {
             //ValidateModelClass();
-            var modelKwargs = kwargs ?? new Kwargs();
+            var modelKwargs = kwargs ??= new Kwargs();
             //ValidateModelKwargs();
             ValidateAssistant(assistantModel);
 
