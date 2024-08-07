@@ -1,8 +1,23 @@
 using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
 
 namespace Doji.AI.Transformers {
 
     public class TokenizerConfig {
+        
+        [JsonProperty("add_prefix_space")]
+        public bool? AddPrefixSpace = null;
+
+        [JsonProperty("add_bos_token")]
+        public bool? AddBosToken = null;
+
+        [JsonProperty("add_eos_token")]
+        public bool? AddEosToken = null;
+
+        [JsonProperty("added_tokens_decoder")]
+        [JsonConverter(typeof(AddedTokensConverter))]
+        public Dictionary<int, AddedToken> AddedTokensDecoder;
 
         [JsonProperty("bos_token")]
         [JsonConverter(typeof(TokenConverter))]
@@ -38,15 +53,48 @@ namespace Doji.AI.Transformers {
         [JsonProperty("errors")]
         public string Errors { get; set; } = "replace";
 
-        [JsonProperty("model_max_length")]
-        public int ModelMaxLength { get; set; } = int.MaxValue;
+        [JsonProperty("legacy")]
+        public bool? Legacy { get; set; }
 
+        [JsonProperty("model_input_names")]
+        public List<string> ModelInputNames { get; set; }
+
+        [JsonProperty("clean_up_tokenization_spaces")]
+        public bool? CleanUpTokenizationSpaces { get; set; }
+
+        [JsonProperty("split_special_tokens")]
+        public bool? SplitSpecialTokens { get; set; }
+        
+        [JsonProperty("model_max_length")]
+        public int? ModelMaxLength { get; set; }
+
+        [JsonProperty("padding_side")]
+        public Side? PaddingSide { get; set; }
+
+        [JsonProperty("truncation_side")]
+        public Side? TruncationSide { get; set; }
+        
         [JsonProperty("tokenizer_class")]
         public string TokenizerClass { get; set; }
 
         public static TokenizerConfig Deserialize(string json) {
             TokenizerConfig config = JsonConvert.DeserializeObject<TokenizerConfig>(json);
             return config;
+        }
+
+        private class AddedTokensConverter : JsonConverter {
+            public override bool CanConvert(Type objectType) {
+                return true;
+            }
+            
+            public override object ReadJson(JsonReader reader, Type objectType, object existingValue, JsonSerializer serializer) {
+                var addedTokens = serializer.Deserialize<Dictionary<int, AddedToken>>(reader);
+                return addedTokens;
+            }
+
+            public override void WriteJson(JsonWriter writer, object value, JsonSerializer serializer) {
+                throw new NotImplementedException();
+            }
         }
     }
 }

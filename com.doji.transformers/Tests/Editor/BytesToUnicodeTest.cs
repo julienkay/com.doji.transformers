@@ -7,7 +7,7 @@ namespace Doji.AI.Transformers.Editor.Tests {
 
         [Test]
         public void TestBytesToUnicode() {
-            Dictionary<int, char> bytestoUnicode = ClipTokenizer.BytesToUnicode();
+            Dictionary<int, char> bytestoUnicode = TokenizationUtils.BytesToUnicode();
 
             // might as well use this precomputed dictionary in the actual code?
             Dictionary<int, char> expected = new Dictionary<int, char>

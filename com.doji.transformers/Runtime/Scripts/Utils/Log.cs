@@ -18,6 +18,15 @@ namespace Doji.AI.Transformers {
         }
 
         [Conditional("LOG_INFO")]
+        public static void Info(object message) {
+#if UNITY
+            UnityEngine.Debug.Log(message);
+#else
+            System.Console.WriteLine(message);
+#endif
+        }
+
+        [Conditional("LOG_INFO")]
         [Conditional("LOG_WARNINGS")]
         public static void Warning(string message) {
 #if UNITY

@@ -1,10 +1,55 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Linq;
 
 namespace Doji.AI.Transformers {
 
     internal static class TokenizationUtils {
+
+        /// <summary>
+        /// Returns list of utf-8 byte and a mapping to unicode strings.
+        /// We specifically avoid mapping to whitespace/control
+        /// characters the bpe code barfs on.
+        /// 
+        /// The reversible bpe codes work on unicode strings.
+        /// This means you need a large # of unicode characters in your
+        /// vocab if you want to avoid UNKs. When you're at something
+        /// like a 10B token dataset you end up needing around 5K for
+        /// decent coverage. This is a significant percentage of your
+        /// normal, say, 32K bpe vocab.To avoid that, we want lookup
+        /// tables between utf-8 bytes and unicode strings.
+        /// 
+        /// TODO: cache this
+        /// </summary>
+        public static Dictionary<int, char> BytesToUnicode() {
+            List<int> bs = GetRange(33, 127) // ! to ~
+                .Concat(GetRange(161, 173))  // ¡ to ¬
+                .Concat(GetRange(174, 256))  // ® to ÿ
+                .ToList();
+
+            List<int> cs = new List<int>(bs);
+            int n = 0;
+
+            for (int b = 0; b < 256; b++) {
+                if (!bs.Contains(b)) {
+                    bs.Add(b);
+                    cs.Add(256 + n);
+                    n++;
+                }
+            }
+
+            Dictionary<int, char> result = new Dictionary<int, char>();
+            for (int i = 0; i < bs.Count; i++) {
+                result.Add(bs[i], (char)cs[i]);
+            }
+
+            return result;
+        }
+
+        private static IEnumerable<int> GetRange(int start, int end) {
+            return Enumerable.Range(start, end - start);
+        }
 
         /// <summary>
         /// Checks whether char <paramref name="c"/> is a whitespace character.
