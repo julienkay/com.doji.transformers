@@ -60,5 +60,16 @@ namespace Doji.AI.Transformers {
             return _worker.PeekOutput("logits") as TensorFloat;
         }
 
+        protected override Dictionary<string, Tensor> PrepareInputsForGeneration(
+            TensorInt inputIds,
+            Kwargs kwargs)
+        {
+            Tensor pastKeyValues = kwargs.Get<Tensor>("past_key_values");
+            TensorInt attentionMask = kwargs.Get<TensorInt>("attention_mask");
+            TensorFloat inputsEmbeds = kwargs.Get<TensorFloat>("inputs_embeds");
+            TensorInt cachePosition = kwargs.Get<TensorInt>("cache_position");
+            TensorInt positionIds = kwargs.Get<TensorInt>("position_ids");
+            return null;
+        }
     }
 }
