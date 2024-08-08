@@ -16,6 +16,9 @@ namespace Doji.AI.Transformers {
             }
             return defaultValue;
         }
+        public object Get(string key, object defaultValue = null) {
+            return this.GetValueOrDefault(key, defaultValue);
+        }
     }
     public class CausalLMOutputWithPast : ModelOutput {
         public TensorFloat Logits { get; }

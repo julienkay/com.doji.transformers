@@ -12,9 +12,9 @@ namespace Doji.AI.Transformers {
                 this["sequences"] = value;
             }
         }
-        public List<Tensor> Scores {
+        public List<TensorFloat> Scores {
             get {
-                return Get<List<Tensor>>("scores");
+                return Get<List<TensorFloat>>("scores");
             }
             internal set {
                 this["scores"] = value;

@@ -533,7 +533,7 @@ namespace Doji.AI.Transformers {
             Kwargs modelKwargs)
         {
             // Initialize values
-            Tensor padTokenId = generationConfig.PadTokenTensor;
+            TensorInt padTokenId = generationConfig.PadTokenTensor;
             bool outputAttentions = generationConfig.OutputAttentions.Value;
             bool outputHiddenStates = generationConfig.OutputHiddenStates.Value;
             bool outputScores = generationConfig.OutputScores.Value;
@@ -547,14 +547,14 @@ namespace Doji.AI.Transformers {
                 throw new ArgumentException("`do_sample` is set to `True`, `logitsWarper` must be provided.");
             }
 
-            // Initialize attention / hidden states / scores tuples
-            List<Tensor> scores = returnDictInGenerate && outputScores ? new List<Tensor>() : null;
+            // initialize attention / hidden states / scores tuples
+            List<TensorFloat> scores = returnDictInGenerate && outputScores ? new List<TensorFloat>() : null;
             List<TensorFloat> rawLogits = returnDictInGenerate && outputLogits ? new List<TensorFloat>() : null;
             List<Tensor> decoderAttentions = returnDictInGenerate && outputAttentions ? new List<Tensor>() : null;
             List<Tensor> crossAttentions = returnDictInGenerate && outputAttentions ? new List<Tensor>() : null;
             List<Tensor> decoderHiddenStates = returnDictInGenerate && outputHiddenStates ? new List<Tensor>() : null;
 
-            // If model is an encoder-decoder, retrieve encoder attention weights and hidden states
+            // if model is an encoder-decoder, retrieve encoder attention weights and hidden states
             Dictionary<string, Tensor> encoderOutputs = Config.IsEncoderDecoder && modelKwargs.ContainsKey("encoder_outputs")
                 ? (Dictionary<string, Tensor>)modelKwargs["encoder_outputs"]
                 : null;
@@ -562,7 +562,7 @@ namespace Doji.AI.Transformers {
             Tensor encoderAttentions = outputAttentions ? encoderOutputs?.GetValueOrDefault("attentions") : null;
             Tensor encoderHiddenStates = outputHiddenStates ? encoderOutputs?.GetValueOrDefault("hidden_states") : null;
 
-            // Keep track of which sequences are already finished
+            // keep track of which sequences are already finished
             int batchSize = inputIds.shape[0];
             int curLen = inputIds.shape[1];
             bool finished = false;
@@ -570,27 +570,26 @@ namespace Doji.AI.Transformers {
             GetInitialCachePosition(inputIds, modelKwargs);
 
             while (!finished) {
-                // Prepare model inputs
+                // prepare model inputs
                 var modelInputs = PrepareInputsForGeneration(inputIds, modelKwargs);
 
-                // Prepare variable output controls
+                // prepare variable output controls
                 //if (outputAttentions)
                 //    modelInputs["output_attentions"] = outputAttentions;
                 //if (outputHiddenStates)
                 //    modelInputs["output_hidden_states"] = outputHiddenStates;
 
-                // Forward pass to get next token
+                // forward pass to get next token
                 var outputs = Execute(modelInputs);
 
                 if (finished)
                     continue; // Don't waste resources running unnecessary code
 
-                // outputs["logits"][:, -1, :]
                 var shape = (outputs["logits"] as TensorFloat).shape;
                 Log.Info((outputs["logits"] as TensorFloat).shape);
-                TensorFloat nextTokenLogits = _ops.Slice(outputs["logits"] as TensorFloat, starts: new int[] { 0, shape[1] - 1, 0}, ends: new int[] { }, axes: null, steps: new int[] { shape[0], 1, shape[3] });
+                TensorFloat nextTokenLogits = _ops.Slice(outputs["logits"] as TensorFloat, .., ^1, ..);
 
-                // Pre-process distribution
+                // pre-process distribution
                 var nextTokenScores = logitsProcessor.Apply(inputIds, nextTokenLogits);
                 if (doSample) {
                     nextTokenScores = logitsWarper.Apply(inputIds, nextTokenScores);
@@ -598,7 +597,8 @@ namespace Doji.AI.Transformers {
 
                 // Store scores, attentions and hidden_states when required
                 if (returnDictInGenerate) {
-                    if (outputScores)
+                    throw new NotImplementedException("'returnDictInGenerate' not supported");
+                    /*if (outputScores)
                         scores.Add(nextTokenScores);
                     if (outputLogits)
                         rawLogits.Add(nextTokenLogits);
@@ -609,31 +609,36 @@ namespace Doji.AI.Transformers {
                     }
                     if (outputHiddenStates) {
                         decoderHiddenStates.Add(Config.IsEncoderDecoder ? outputs["decoder_hidden_states"] as Tensor : outputs["hidden_states"] as Tensor);
-                    }
+                    }*/
                 }
 
-                // Token selection
-                Tensor nextTokens;
+                // token selection
+                TensorInt nextTokens;
                 if (doSample) {
-                    var probs = _ops.Softmax(nextTokenScores, axis: -1);
-                    throw new NotImplementedException("tf.random.categorical");
-                    //nextTokens = tf.random.categorical(probs, num_samples: 1).squeeze(axis: 1);
+                    throw new NotImplementedException("torch.multinomial");
+                    //var probs = _ops.Softmax(nextTokenScores, axis: -1);
+                    //nextTokens = torch.multinomial(probs, num_samples=1).squeeze(1)
                 } else {
                     nextTokens = _ops.ArgMax(nextTokenScores, axis: -1);
                 }
 
-                // Finished sentences should have their next token be a padding token
+                // finished sentences should have their next token be a padding token
                 if (hasEosStoppingCriteria) {
-                    //__+++____nextTokens = np.where(unfinishedSequences == 1, nextTokens, padTokenId);
+                    var tmp = _ops.Mul(nextTokens, unfinishedSequences);
+                    var tmp1 = _ops.Sub(1, unfinishedSequences);
+                    var tmp2 = _ops.Mul(padTokenId, tmp1);
+                    nextTokens = _ops.Add(tmp, tmp2);
                 }
 
-                // Update generated ids, model inputs, and length for next step
-                //__+++____inputIds = tf.concat(new[] { inputIds, nextTokens[:, tf.newaxis] }, axis: -1);
+                // update generated ids, model inputs, and length for next step
+                nextTokens = _ops.Expand(nextTokens, new TensorShape(nextTokens.shape[0], 1));
+                inputIds = _ops.Concatenate(inputIds, nextTokens, axis: -1);
                 //streamer?.Put(nextTokens);
-                //__+++____modelKwargs = UpdateModelKwargsForGeneration(outputs, modelKwargs, model.config.IsEncoderDecoder);
+                UpdateModelKwargsForGeneration(outputs, modelKwargs, Config.IsEncoderDecoder);
 
-                //__+++____unfinishedSequences = np.bitwise_and(unfinishedSequences, ~stoppingCriteria.Check(inputIds, scores));
-                //__+++____finished = np.max(unfinishedSequences) == 0;
+                unfinishedSequences = _ops.And(unfinishedSequences, _ops.Not(stoppingCriteria.Apply(inputIds, /*scores*/ null)));
+                var max = _ops.ReduceMax(unfinishedSequences, null).ReadbackAndClone();
+                finished = max[0] == 0;
                 curLen += 1;
             }
 
@@ -714,6 +719,74 @@ namespace Doji.AI.Transformers {
                     dictToExpand[key] = _ops.RepeatInterleave(tensor, expandSize, dim: 0);
                     tensor.Reshape(new TensorShape(expandSize, tensor.shape[1]));
                 }
+            }
+        }
+
+        private (string cacheName, Tensor cache) ExtractPastFromModelOutput(ModelOutput outputs) {
+            object pastKeyValues = null;
+            string cacheName = "past_key_values";
+            if (outputs.TryGetValue("past_key_values", out object pastKV)) {
+                pastKeyValues = pastKV;
+            } else if (outputs.TryGetValue("mems", out object mems)) {
+                pastKeyValues = mems;
+            } else if (outputs.TryGetValue("past_buckets_states", out object pastBS)) {
+                pastKeyValues = pastBS;
+            } else if (outputs.TryGetValue("cache_params", out object cacheParams)) {
+                pastKeyValues = cacheParams;
+                cacheName = "cache_params";
+            }
+            return (cacheName, pastKeyValues as Tensor);
+        }
+
+        private void UpdateModelKwargsForGeneration(
+            ModelOutput outputs,
+            Kwargs modelKwargs,
+            bool isEncoderDecoder = false,
+            int num_new_tokens = 1)
+        {
+            // update past_key_values keeping its naming used in model code
+            (string cacheName, Tensor cache) = ExtractPastFromModelOutput(outputs);
+            modelKwargs[cacheName] = cache;
+            if (outputs.ContainsKey("state")) {
+                modelKwargs["state"] = outputs.Get("state");
+            }
+
+            // update token_type_ids with last value
+            if (modelKwargs.ContainsKey("token_type_ids")) {
+                var tokenTypeIds = modelKwargs["token_type_ids"] as Tensor;
+                Tensor tmp = _ops.Slice(tokenTypeIds, .., ^1);
+                tmp.Reshape(tokenTypeIds.shape.Unsqueeze(-1));
+                modelKwargs["token_type_ids"] = _ops.Concatenate(tokenTypeIds, tmp, axis: -1);
+            }
+            if (!isEncoderDecoder) {
+                // update attention mask
+                if (modelKwargs.ContainsKey("attention_mask")) {
+                    var attentionMask = modelKwargs["attention_mask"] as TensorInt;
+                    modelKwargs["attention_mask"] = _ops.Concatenate(
+                        attentionMask, Ones<TensorInt>(new TensorShape(attentionMask.shape[0], 1)), axis: -1
+                    );
+                }
+            } else {
+                // update decoder attention mask
+                if (modelKwargs.ContainsKey("decoder_attention_mask")) {
+                    var decoderAttentionMask = modelKwargs["decoder_attention_mask"] as Tensor;
+                    modelKwargs["decoder_attention_mask"] = _ops.Concatenate(
+                        decoderAttentionMask, Ones<TensorInt>(new TensorShape(decoderAttentionMask.shape[0], 1)), axis: -1
+                    );
+                }
+            }
+
+            if (modelKwargs.Get("use_cache", true)) {
+                var cachePosition = modelKwargs["cache_position"] as TensorInt;
+                cachePosition = _ops.Slice(cachePosition, ^1..);
+                cachePosition = _ops.Add(cachePosition, num_new_tokens);
+                modelKwargs["cache_position"] = cachePosition;
+            } else {
+                var pastPositions = modelKwargs.Pop("cache_position") as TensorInt;
+                throw new NotImplementedException("torch.arange not supported.");
+                /*newPositions = torch.arange(
+                pastPositions[-1] + 1, pastPositions[-1] + num_new_tokens + 1)
+                modelKwargs["cache_position"] = torch.cat((pastPositions, newPositions))*/
             }
         }
 
@@ -1058,10 +1131,10 @@ namespace Doji.AI.Transformers {
         /// Note that <paramref name="generationConfig"/> is modified in this method.
         /// </summary>
         private void PrepareSpecialTokens(GenerationConfig generationConfig, bool? kwargsHasAttentionMask = null) {
-            Tensor bos_token_tensor = TensorOrNone(generationConfig.BosTokenId);
-            Tensor eos_token_tensor = TensorOrNone(generationConfig.EosTokenId);
-            Tensor pad_token_tensor = TensorOrNone(generationConfig.PadTokenId);
-            Tensor decoder_start_token_tensor = TensorOrNone(generationConfig.DecoderStartTokenId);
+            TensorInt bos_token_tensor = TensorOrNone(generationConfig.BosTokenId);
+            TensorInt eos_token_tensor = TensorOrNone(generationConfig.EosTokenId);
+            TensorInt pad_token_tensor = TensorOrNone(generationConfig.PadTokenId);
+            TensorInt decoder_start_token_tensor = TensorOrNone(generationConfig.DecoderStartTokenId);
 
             if (Config.IsEncoderDecoder) {
                 decoder_start_token_tensor = decoder_start_token_tensor ?? bos_token_tensor;
@@ -1100,7 +1173,7 @@ namespace Doji.AI.Transformers {
             generationConfig.DecoderStartTokenTensor = decoder_start_token_tensor;
         }
 
-        private Tensor TensorOrNone(int? token) {
+        private TensorInt TensorOrNone(int? token) {
             if (token == null) {
                 return null;
             }
@@ -1108,7 +1181,7 @@ namespace Doji.AI.Transformers {
             return new TensorInt(new TensorShape(1), new int[] { token.Value });
         }
 
-        private Tensor TensorOrNone(int[] token) {
+        private TensorInt TensorOrNone(int[] token) {
             if (token == null) {
                 return null;
             }
@@ -1128,7 +1201,7 @@ namespace Doji.AI.Transformers {
                 return defaultAttentionMask;
             }
 
-            throw new NotImplementedException("Can't infer missing attention mask. Please provide an `attention_mask`");
+            throw new NotImplementedException("'torch.isin' not supported. Can't infer missing attention mask. Please provide an `attention_mask`");
             /*
             // Otherwise we have may have information -> try to infer the attention mask
             bool isPadTokenInInputs = padTokenId != null && torch.isin(inputs, torch.tensor(new[] { padTokenId.Value }, dtype: torch.@long)).any().ToBoolean();
@@ -1254,8 +1327,7 @@ namespace Doji.AI.Transformers {
                 }
                 Log.Info(pastLength);
                 Log.Info(cachePosition.shape);
-                //throw new NotImplementedException();
-                //cachePosition = cachePosition[past_length:]
+                cachePosition = _ops.Slice(cachePosition, pastLength..);
             }
             modelKwargs["cache_position"] = cachePosition;
         }
