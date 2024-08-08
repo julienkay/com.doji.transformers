@@ -6,6 +6,14 @@
       "source": "local",
       "dependencies": {}
     },
+    "com.doji.sentis-utils": {
+      "version": "file:../../../../com.doji.sentis-utils/com.doji.sentis-utils",
+      "depth": 0,
+      "source": "local",
+      "dependencies": {
+        "com.unity.sentis": "1.6.0-pre.1"
+      }
+    },
     "com.doji.transformers": {
       "version": "file:../../../com.doji.transformers",
       "depth": 0,
