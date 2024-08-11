@@ -34,19 +34,15 @@ namespace Doji.AI.Transformers {
         }
 
         private static int[] OnesI(int num) {
-            int[] result = new int[num];
-            for (int i = 0; i < num; i++) {
-                result[i] = 1;
-            }
-            return result;
+            int[] ones = new int[num];
+            Array.Fill(ones, 1);
+            return ones;
         }
 
         private static float[] OnesF(int num) {
-            float[] result = new float[num];
-            for (int i = 0; i < num; i++) {
-                result[i] = 1;
-            }
-            return result;
+            float[] ones = new float[num];
+            Array.Fill(ones, 1);
+            return ones;
         }
     }
 }
