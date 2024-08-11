@@ -22,7 +22,7 @@ namespace Doji.AI.Transformers {
 
         private Cache _cache;
 
-        protected virtual Dictionary<string, Tensor> PrepareInputsForGeneration(TensorInt inputIds, Kwargs kwargs) {
+        protected virtual Dictionary<string, object> PrepareInputsForGeneration(TensorInt inputIds, Kwargs kwargs) {
             throw new NotImplementedException($"A model class needs to define a {nameof(PrepareInputsForGeneration)} method in order to use `.Generate()`.");
         }
 

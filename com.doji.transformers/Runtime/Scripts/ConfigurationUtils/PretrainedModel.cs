@@ -44,7 +44,7 @@ namespace Doji.AI.Transformers {
         private Model _model;
         protected IWorker _worker;
         private IBackend _backend;
-        private Ops _ops;
+        protected Ops _ops;
 
         public PreTrainedModel(Model model, PretrainedConfig config, BackendType backend) : base(config) {
             Backend = backend;
@@ -68,7 +68,7 @@ namespace Doji.AI.Transformers {
             _ops?.Dispose();
         }
 
-        public abstract ModelOutput Execute(Dictionary<string, Tensor> modelInputs);
+        public abstract ModelOutput Execute(Dictionary<string, object> modelInputs);
 
         /// <summary>
         /// Loads a Sentis <see cref="Model"/> from a <see cref="ModelAsset"/> in Resources.
