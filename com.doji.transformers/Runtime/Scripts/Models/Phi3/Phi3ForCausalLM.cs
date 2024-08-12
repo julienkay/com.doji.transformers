@@ -80,8 +80,7 @@ namespace Doji.AI.Transformers {
                 if (inputsEmbeds != null) {
                     inputIds = _ops.Slice(inputIds, .., ^cachePosition.shape[0]..);
                 } else if (inputIds.shape[1] != cachePosition.shape[0]) {
-                    throw new NotImplementedException("Advanced indexing not supported ");
-                    //inputIds = _ops.Slice(inputIds, .., cachePosition);
+                    inputIds = _ops.GatherElements(inputIds, cachePosition, 1);
                 }
             }
 
