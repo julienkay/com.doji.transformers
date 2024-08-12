@@ -53,7 +53,7 @@ namespace Doji.AI.Transformers {
 
         protected virtual void InitializeNetwork(Model model) {
             if (model == null) {
-                throw new ArgumentException("Unet Model was null", nameof(model));
+                throw new ArgumentException("Model was null", nameof(model));
             }
 
             _model = model;

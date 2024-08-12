@@ -29,7 +29,7 @@ namespace Doji.AI.Transformers {
         }
 
         public TensorFloat Execute(TensorInt inputIds, TensorInt attentionMask, TensorInt positionIds) {
-            _inputs["inputIds"] = inputIds;
+            _inputs["input_ids"] = inputIds;
             _inputs["attention_mask"] = attentionMask;
             _inputs["position_ids"] = positionIds;
             _worker.Execute(_inputs);
@@ -37,7 +37,7 @@ namespace Doji.AI.Transformers {
         }
 
         public TensorFloat ExecuteLayerByLayer(TensorInt inputIds, TensorInt attentionMask, TensorInt positionIds) {
-            _inputs["inputIds"] = inputIds;
+            _inputs["input_ids"] = inputIds;
             _inputs["attention_mask"] = attentionMask;
             _inputs["position_ids"] = positionIds;
 
@@ -64,7 +64,8 @@ namespace Doji.AI.Transformers {
 
         protected override Dictionary<string, object> PrepareInputsForGeneration(
             TensorInt inputIds,
-            Kwargs kwargs) {
+            Kwargs kwargs)
+        {
             Cache pastKeyValues = kwargs.Get<Cache>("past_key_values");
             TensorInt attentionMask = kwargs.Get<TensorInt>("attention_mask");
             TensorFloat inputsEmbeds = kwargs.Get<TensorFloat>("inputs_embeds");
@@ -124,7 +125,7 @@ namespace Doji.AI.Transformers {
                 );*/
             }
             modelInputs["position_ids"] = positionIds;
-            modelInputs["cachePosition"] = cachePosition;
+            modelInputs["cache_position"] = cachePosition;
             modelInputs["past_key_values"] = pastKeyValues;
             modelInputs["use_cache"] = useCache;
             modelInputs["attention_mask"] = attentionMask;
