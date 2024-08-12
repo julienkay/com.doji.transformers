@@ -1187,7 +1187,7 @@ namespace Doji.AI.Transformers {
             if (padTokenId == null) {
                 return defaultAttentionMask;
             }
-            bool isInputIds = inputs.shape.length == 2 && (inputs.dataType == DataType.Int);
+            bool isInputIds = inputs.shape.rank == 2 && (inputs.dataType == DataType.Int);
 
             if (!isInputIds) {
                 return defaultAttentionMask;
