@@ -161,8 +161,7 @@ namespace Doji.AI.Transformers {
                     modelKwargs[cacheName] = new OffloadedCache();
                 }
             } else if (generationConfig.CacheImplementation == null && SupportsDefaultDynamicCache()) {
-                // Use DynamicCache() instance by default. This will avoid back and forth from legacy format that
-                // keeps copying the cache thus using much more memory
+                // Use DynamicCache() instance by default.
                 var past = (string)modelKwargs.Get(cacheName, null);
                 bool requires_cross_attention_cache = Config.IsEncoderDecoder || modelKwargs.ContainsKey("encoder_outputs");
                 if (past == null) {
@@ -172,11 +171,7 @@ namespace Doji.AI.Transformers {
                         new EncoderDecoderCache(new DynamicCache(), new DynamicCache());
                     useDynamicCacheByDefault = true;
                 } else {
-                    modelKwargs[cacheName] =
-                          !requires_cross_attention_cache ?
-                          DynamicCache.FromLegacyCache(past) :
-                          EncoderDecoderCache.FromLegacyCache(past);
-                    useDynamicCacheByDefault = true;
+                    throw new ArgumentException("Cache was not null. This is not expected.");
                 }
             }
 
@@ -446,13 +441,10 @@ namespace Doji.AI.Transformers {
                 }
             }
 
-            // Convert to legacy cache if needed
-            /*if (useDynamicCacheByDefault && generationConfig.ReturnLegacyCache) {
-                if isinstance(result, ModelOutput) and hasattr(result, "past_key_values"):
-                if isinstance(result.past_key_values, (DynamicCache, EncoderDecoderCache)):
-                    result.past_key_values = result.past_key_values.to_legacy_cache()
+            if (generationConfig.ReturnLegacyCache) {
+                Log.Warning("The generation config specifies 'return_legacy_cache. But legacy cache is not supported in this library.");
             }
-            return result*/
+            //return result;
         }
 
         private object GetCandidateGenerator(GenerationConfig generationConfig, TensorInt inputIds, TensorInt inputsTensor, object assistantModel, object logitsProcessor, Kwargs modelKwargs) {
@@ -1123,7 +1115,7 @@ namespace Doji.AI.Transformers {
         }
 
         private bool SupportsDefaultDynamicCache() {
-            return true;
+            return !GetType().Name.ToLower().Contains("jamba");
         }
 
         /// <summary>
@@ -1315,26 +1307,18 @@ namespace Doji.AI.Transformers {
                 cachePosition = _ops.CumSum(cachePosition, 0);
                 cachePosition = _ops.Sub(cachePosition, 1);
             }
-            int pastLength;
             if (modelKwargs.Get("past_key_values") != null) {
                 Cache cache = modelKwargs.Get<Cache>("past_key_values");
-                pastLength = 0;
-                if (cache is not Cache) {
-                    throw new NotImplementedException();
-                    //past_length = cache[0][0].shape[2]
-                } else {
-                    pastLength = cache.GetSeqLength();
-                }
-                Log.Info(pastLength);
-                Log.Info(cachePosition.shape);
+                int pastLength = cache.GetSeqLength();
                 cachePosition = _ops.Slice(cachePosition, pastLength..);
             }
             modelKwargs["cache_position"] = cachePosition;
         }
 
         /// <summary>
-        /// Sets a cache for <see cref="Generate"/>, that will persist across calls. A new cache will only be initialized a
-        /// new <see cref="Generate"/> call requires a larger cache or uses a different batch size.
+        /// Sets a cache for <see cref="Generate"/>, that will persist across calls.
+        /// A new cache will only be initialized if a new <see cref="Generate"/> call
+        /// requires a larger cache or uses a different batch size.
         /// </summary>
         public Cache GetCache(string cacheImplementation, int maxBatchSize, int maxCacheLen, Kwargs modelKwargs) {
             Type cacheCls = NEED_SETUP_CACHE_CLASSES_MAPPING[cacheImplementation];

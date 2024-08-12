@@ -67,14 +67,6 @@ namespace Doji.AI.Transformers {
             KeyCache = new List<Tensor>();
         }
 
-        /// <summary>
-        /// Converts a cache in the legacy cache format into an equivalent <see cref="DynamicCache"/>.
-        /// Used for backward compatibility.
-        /// </summary>
-        public static Cache FromLegacyCache(string cls) {
-            Type clsType = Type.GetType(cls);
-            return Activator.CreateInstance(clsType) as Cache;
-        }
         public override int GetSeqLength(int? layerIdx = 0) {
             if (KeyCache.Count <= layerIdx) {
                 return 0;
@@ -103,12 +95,6 @@ namespace Doji.AI.Transformers {
         public EncoderDecoderCache(Cache selfAttentionCache, Cache crossAttentionCache) {
             SelfAttentionCache = selfAttentionCache;
             CrossAttentionCache = crossAttentionCache;
-        }
-        /// <summary>
-        /// Converts a cache in the legacy cache format into an equivalent <see cref="EncoderDecoderCache"/>.
-        /// </summary>
-        public static Cache FromLegacyCache(string cls) {
-            throw new NotImplementedException();
         }
         public override void Reset() {
             throw new NotImplementedException();
