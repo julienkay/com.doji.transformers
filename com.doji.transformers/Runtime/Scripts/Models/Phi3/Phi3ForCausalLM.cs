@@ -84,7 +84,7 @@ namespace Doji.AI.Transformers {
                 }
             }
 
-            if (attentionMask != null && positionIds != null) {
+            if (attentionMask != null && positionIds == null) {
                 // create positionIds on the fly for batch generation
                 positionIds = _ops.Sub(_ops.CumSum(attentionMask, -1), 1);
                 positionIds = _ops.MaskedFill(positionIds, _ops.Neg(attentionMask), 1);
