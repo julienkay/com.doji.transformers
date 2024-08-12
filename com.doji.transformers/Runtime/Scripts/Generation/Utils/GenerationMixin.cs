@@ -1292,21 +1292,15 @@ namespace Doji.AI.Transformers {
         /// </summary>
         private void GetInitialCachePosition(TensorInt inputIds, Kwargs modelKwargs) {
             // `torch.arange` from a shape -- the lines below are equivalent to `torch.arange`
-            TensorInt inputEmbeds = modelKwargs.Get("inputs_embeds") as TensorInt;
+            TensorInt inputEmbeds = modelKwargs.Get<TensorInt>("inputs_embeds");
             TensorInt cachePosition;
             if (inputEmbeds != null) {
-                var shape = inputEmbeds.shape;
-                shape[0] = shape[2] = 0;
-                cachePosition = Ones<TensorInt>(shape);
-                cachePosition = _ops.CumSum(cachePosition, 0);
-                cachePosition = _ops.Sub(cachePosition, 1);
+                cachePosition = Ones<TensorInt>(new TensorShape(inputEmbeds.shape[1]));
             } else {
-                var shape = inputIds.shape;
-                shape[0] = 0;
-                cachePosition = Ones<TensorInt>(shape);
-                cachePosition = _ops.CumSum(cachePosition, 0);
-                cachePosition = _ops.Sub(cachePosition, 1);
+                cachePosition = Ones<TensorInt>(new TensorShape(inputIds.shape[1]));
             }
+            cachePosition = _ops.CumSum(cachePosition, 0);
+            cachePosition = _ops.Sub(cachePosition, 1);
             if (modelKwargs.Get("past_key_values") != null) {
                 Cache cache = modelKwargs.Get<Cache>("past_key_values");
                 int pastLength = cache.GetSeqLength();
