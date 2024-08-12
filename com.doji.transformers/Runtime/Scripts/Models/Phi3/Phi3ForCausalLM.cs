@@ -78,7 +78,7 @@ namespace Doji.AI.Transformers {
             // Exception 2: some generation methods do special slicing of inputIds, so we don't need to do it here
             if (pastKeyValues != null) {
                 if (inputsEmbeds != null) {
-                    inputIds = _ops.Slice(inputIds, .., -cachePosition.shape[0]..);
+                    inputIds = _ops.Slice(inputIds, .., ^cachePosition.shape[0]..);
                 } else if (inputIds.shape[1] != cachePosition.shape[0]) {
                     throw new NotImplementedException("Advanced indexing not supported ");
                     //inputIds = _ops.Slice(inputIds, .., cachePosition);
@@ -90,7 +90,7 @@ namespace Doji.AI.Transformers {
                 positionIds = _ops.Sub(_ops.CumSum(attentionMask, -1), 1);
                 positionIds = _ops.MaskedFill(positionIds, _ops.Neg(attentionMask), 1);
                 if (pastKeyValues != null) {
-                    positionIds = _ops.Slice(positionIds, .., -inputIds.shape[1]..);
+                    positionIds = _ops.Slice(positionIds, .., ^inputIds.shape[1]..);
                 }
             }
 
