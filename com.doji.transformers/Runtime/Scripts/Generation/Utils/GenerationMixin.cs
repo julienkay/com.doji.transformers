@@ -712,10 +712,13 @@ namespace Doji.AI.Transformers {
                     && dictToExpand[key] != null
                     && dictToExpand[key] is Tensor)
                 {
+                    //TODO: RepeatInterleave needs to properly support arbitrary shapes
                     TensorInt tensor = dictToExpand[key] as TensorInt;
-                    tensor.Reshape(new TensorShape(tensor.shape[1]));
-                    dictToExpand[key] = _ops.RepeatInterleave(tensor, expandSize, dim: 0);
-                    tensor.Reshape(new TensorShape(expandSize, tensor.shape[1]));
+                    int d1 = tensor.shape[1];
+                    tensor.Reshape(new TensorShape(d1));
+                    tensor = _ops.RepeatInterleave(tensor, expandSize, dim: 0);
+                    dictToExpand[key] = tensor;
+                    tensor.Reshape(new TensorShape(expandSize, d1));
                 }
             }
         }
