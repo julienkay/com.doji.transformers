@@ -78,7 +78,13 @@ namespace Doji.AI.Transformers {
             }
 
             if (!kwargsHasAttentionMask && requireAttentionMask && acceptsAttentionMask) {
-                modelKwargs["attention_mask"] = PrepareAttentionMaskForGeneration(inputsTensor, generationConfig.PadTokenTensor);
+                modelKwargs["attention_mask"] = 
+                    PrepareAttentionMaskForGeneration(
+                        inputsTensor,
+                        generationConfig.PadTokenTensor,
+                        generationConfig.PadTokenId,
+                        generationConfig.EosTokenId
+                    );
             }
 
             if (Config.IsEncoderDecoder && !modelKwargs.ContainsKey("encoder_outputs")) {
@@ -1181,7 +1187,7 @@ namespace Doji.AI.Transformers {
             return new TensorInt(new TensorShape(token.Length), token);
         }
 
-        private static Tensor PrepareAttentionMaskForGeneration(Tensor inputs, Tensor padTokenId) {
+        private Tensor PrepareAttentionMaskForGeneration(TensorInt inputs, TensorInt padTokenTensor, int? padTokenId, int[] eosTokenId) {
             // No information for attention mask inference -> return default attention mask
             var defaultAttentionMask = Ones<TensorInt>(inputs.shape);
             if (padTokenId == null) {
@@ -1193,15 +1199,16 @@ namespace Doji.AI.Transformers {
                 return defaultAttentionMask;
             }
 
-            throw new NotImplementedException("'torch.isin' not supported. Can't infer missing attention mask. Please provide an `attention_mask`");
-            /*
-            // Otherwise we have may have information -> try to infer the attention mask
-            bool isPadTokenInInputs = padTokenId != null && torch.isin(inputs, torch.tensor(new[] { padTokenId.Value }, dtype: torch.@long)).any().ToBoolean();
-            bool isPadTokenNotEqualToEosTokenId = eosTokenId == null || !torch.isin(torch.tensor(new[] { eosTokenId.Value }, dtype: torch.@long), torch.tensor(new[] { padTokenId.Value }, dtype: torch.@long)).any().ToBoolean();
+            // Otherwise we may have information -> try to infer the attention mask
+            //TODO: How to do this without readback (i.e. implement torch.isin?)
+            int[] inputsArray = inputs.ToReadOnlyArray();
+            bool isPadTokenInInputs = padTokenId != null && inputsArray.Contains(padTokenId.Value);
+            bool isPadTokenNotEqualToEosTokenId = eosTokenId == null || !eosTokenId.Contains(padTokenId.Value);
             bool canInferAttentionMask = isPadTokenInInputs && isPadTokenNotEqualToEosTokenId;
-            var attentionMaskFromPadding = inputs.ne(padTokenId.Value).to_type(torch.@long);
-            var attentionMask = torch.where(torch.tensor(canInferAttentionMask), attentionMaskFromPadding, defaultAttentionMask);
-            return attentionMask;*/
+            TensorInt attentionMaskFromPadding = _ops.Equal(inputs, padTokenTensor);
+            using TensorInt canInferTensor = new TensorInt(canInferAttentionMask ? 1 : 0);
+            TensorInt attentionMask = _ops.Where(canInferTensor, attentionMaskFromPadding, defaultAttentionMask);
+            return attentionMask;
         }
 
         private static Tensor PrepareEncoderDecoderKwargsForGeneration(Tensor inputs, Kwargs modelKwargs, string modelInputName, GenerationConfig generationConfig) {
