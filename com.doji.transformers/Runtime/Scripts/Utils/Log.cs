@@ -26,8 +26,6 @@ namespace Doji.AI.Transformers {
 #endif
         }
 
-        [Conditional("LOG_INFO")]
-        [Conditional("LOG_WARNINGS")]
         public static void Warning(string message) {
 #if UNITY
             UnityEngine.Debug.LogWarning(message);
@@ -36,9 +34,6 @@ namespace Doji.AI.Transformers {
 #endif
         }
 
-        [Conditional("LOG_INFO")]
-        [Conditional("LOG_WARNINGS")]
-        [Conditional("LOG_ERRORS")]
         public static void Error(string message) {
 #if UNITY
             UnityEngine.Debug.LogError(message);
