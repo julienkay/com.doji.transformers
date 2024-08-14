@@ -1,4 +1,3 @@
-using static Doji.AI.Transformers.TensorUtils;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -564,7 +563,7 @@ namespace Doji.AI.Transformers {
             int batchSize = inputIds.shape[0];
             int curLen = inputIds.shape[1];
             bool finished = false;
-            TensorInt unfinishedSequences = Ones<TensorInt>(new TensorShape(batchSize));
+            TensorInt unfinishedSequences = _ops.Ones<TensorInt>(new TensorShape(batchSize));
             GetInitialCachePosition(inputIds, modelKwargs);
 
             while (!finished) {
@@ -764,7 +763,7 @@ namespace Doji.AI.Transformers {
                 if (modelKwargs.ContainsKey("attention_mask")) {
                     var attentionMask = modelKwargs["attention_mask"] as TensorInt;
                     modelKwargs["attention_mask"] = _ops.Concatenate(
-                        attentionMask, Ones<TensorInt>(new TensorShape(attentionMask.shape[0], 1)), axis: -1
+                        attentionMask, _ops.Ones<TensorInt>(new TensorShape(attentionMask.shape[0], 1)), axis: -1
                     );
                 }
             } else {
@@ -772,7 +771,7 @@ namespace Doji.AI.Transformers {
                 if (modelKwargs.ContainsKey("decoder_attention_mask")) {
                     var decoderAttentionMask = modelKwargs["decoder_attention_mask"] as Tensor;
                     modelKwargs["decoder_attention_mask"] = _ops.Concatenate(
-                        decoderAttentionMask, Ones<TensorInt>(new TensorShape(decoderAttentionMask.shape[0], 1)), axis: -1
+                        decoderAttentionMask, _ops.Ones<TensorInt>(new TensorShape(decoderAttentionMask.shape[0], 1)), axis: -1
                     );
                 }
             }
@@ -1108,7 +1107,7 @@ namespace Doji.AI.Transformers {
             }
 
             if (modelKwargs.ContainsKey("inputs_embeds")) {
-                inputs = Ones<TensorInt>(new TensorShape(batch_size, 0));
+                inputs = _ops.Ones<TensorInt>(new TensorShape(batch_size, 0));
             }
 
             if (bosTokenId == null) {
@@ -1116,7 +1115,7 @@ namespace Doji.AI.Transformers {
             }
 
             using TensorInt bos = new TensorInt(bosTokenId.Value);
-            using TensorInt ones = Ones<TensorInt>(new TensorShape(batch_size, 1));
+            using TensorInt ones = _ops.Ones<TensorInt>(new TensorShape(batch_size, 1));
             TensorInt mul = TensorInt.AllocNoData(ones.shape);
 
             _backend.Mul(ones, bos, mul);
@@ -1192,7 +1191,7 @@ namespace Doji.AI.Transformers {
 
         private Tensor PrepareAttentionMaskForGeneration(TensorInt inputs, TensorInt padTokenTensor, int? padTokenId, int[] eosTokenId) {
             // No information for attention mask inference -> return default attention mask
-            var defaultAttentionMask = Ones<TensorInt>(inputs.shape);
+            var defaultAttentionMask = _ops.Ones<TensorInt>(inputs.shape);
             if (padTokenId == null) {
                 return defaultAttentionMask;
             }
@@ -1305,9 +1304,9 @@ namespace Doji.AI.Transformers {
             TensorInt inputEmbeds = modelKwargs.Get<TensorInt>("inputs_embeds");
             TensorInt cachePosition;
             if (inputEmbeds != null) {
-                cachePosition = Ones<TensorInt>(new TensorShape(inputEmbeds.shape[1]));
+                cachePosition = _ops.Ones<TensorInt>(new TensorShape(inputEmbeds.shape[1]));
             } else {
-                cachePosition = Ones<TensorInt>(new TensorShape(inputIds.shape[1]));
+                cachePosition = _ops.Ones<TensorInt>(new TensorShape(inputIds.shape[1]));
             }
             cachePosition = _ops.CumSum(cachePosition, 0);
             cachePosition = _ops.Sub(cachePosition, 1);
