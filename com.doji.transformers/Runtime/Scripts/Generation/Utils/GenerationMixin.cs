@@ -744,7 +744,7 @@ namespace Doji.AI.Transformers {
             ModelOutput outputs,
             Kwargs modelKwargs,
             bool isEncoderDecoder = false,
-            int num_new_tokens = 1)
+            int numNewTokens = 1)
         {
             // update past_key_values keeping its naming used in model code
             (string cacheName, Tensor cache) = ExtractPastFromModelOutput(outputs);
@@ -779,16 +779,16 @@ namespace Doji.AI.Transformers {
             }
 
             if (modelKwargs.Get("use_cache", true)) {
-                var cachePosition = modelKwargs["cache_position"] as TensorInt;
+                TensorInt cachePosition = modelKwargs["cache_position"] as TensorInt;
                 cachePosition = _ops.Slice(cachePosition, ^1..);
-                cachePosition = _ops.Add(cachePosition, num_new_tokens);
+                cachePosition = _ops.Add(cachePosition, numNewTokens);
                 modelKwargs["cache_position"] = cachePosition;
             } else {
-                var pastPositions = modelKwargs.Pop("cache_position") as TensorInt;
-                throw new NotImplementedException("torch.arange not supported.");
-                /*newPositions = torch.arange(
-                pastPositions[-1] + 1, pastPositions[-1] + num_new_tokens + 1)
-                modelKwargs["cache_position"] = torch.cat((pastPositions, newPositions))*/
+                //TODO: Possible to do this without readback?
+                TensorInt pastPositions = modelKwargs.Pop("cache_position") as TensorInt;
+                pastPositions = pastPositions.ReadbackAndClone();
+                TensorInt newPositions = _ops.NewTensorInt(new TensorShape(numNewTokens), ArrayUtils.Arange(pastPositions[-1] + 1, pastPositions[-1] + numNewTokens + 1));
+                modelKwargs["cache_position"] = _ops.Cat(pastPositions, newPositions);
             }
         }
 
