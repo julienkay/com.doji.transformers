@@ -42,7 +42,7 @@ namespace Doji.AI.Transformers {
             ValidateAssistant(assistantModel);
 
             var logitsProcessor = new LogitsProcessorList();
-            var stoppingCriteria = new StoppingCriteriaList();
+            var stoppingCriteria = new StoppingCriteriaList(_ops);
 
             bool acceptsAttentionMask = AcceptsAttentionMask;
             bool requireAttentionMask = !modelKwargs.ContainsKey("encoder_outputs");
@@ -950,7 +950,7 @@ namespace Doji.AI.Transformers {
            StoppingCriteriaList stoppingCriteria = null,
            PreTrainedTokenizerBase tokenizer = null)
         {
-            var criteria = new StoppingCriteriaList();
+            var criteria = new StoppingCriteriaList(_ops);
 
             if (generationConfig.MaxLength.HasValue) {
                 var maxPositionEmbeddings = Config.MaxPositionEmbeddings ?? null;
