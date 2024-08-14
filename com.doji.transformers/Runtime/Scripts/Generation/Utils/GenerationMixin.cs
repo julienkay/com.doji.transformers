@@ -1116,8 +1116,8 @@ namespace Doji.AI.Transformers {
                 throw new ArgumentException("`bos_token_id` has to be defined when no `input_ids` are provided.");
             }
 
-            using TensorInt bos = new TensorInt(bosTokenId.Value);
-            using TensorInt ones = _ops.Ones<TensorInt>(new TensorShape(batch_size, 1));
+            TensorInt bos = _ops.NewTensorInt(bosTokenId.Value);
+            TensorInt ones = _ops.Ones<TensorInt>(new TensorShape(batch_size, 1));
             TensorInt mul = TensorInt.AllocNoData(ones.shape);
 
             _backend.Mul(ones, bos, mul);
@@ -1180,7 +1180,7 @@ namespace Doji.AI.Transformers {
                 return null;
             }
 
-            return new TensorInt(new TensorShape(1), new int[] { token.Value });
+            return _ops.NewTensorInt(token.Value);
         }
 
         private TensorInt TensorOrNone(int[] token) {
@@ -1188,7 +1188,7 @@ namespace Doji.AI.Transformers {
                 return null;
             }
 
-            return new TensorInt(new TensorShape(token.Length), token);
+            return _ops.NewTensorInt(new TensorShape(token.Length), token);
         }
 
         private Tensor PrepareAttentionMaskForGeneration(TensorInt inputs, TensorInt padTokenTensor, int? padTokenId, int[] eosTokenId) {
@@ -1210,7 +1210,7 @@ namespace Doji.AI.Transformers {
             bool isPadTokenNotEqualToEosTokenId = eosTokenId == null || !eosTokenId.Contains(padTokenId.Value);
             bool canInferAttentionMask = isPadTokenInInputs && isPadTokenNotEqualToEosTokenId;
             TensorInt attentionMaskFromPadding = _ops.Equal(inputs, padTokenTensor);
-            using TensorInt canInferTensor = new TensorInt(canInferAttentionMask ? 1 : 0);
+            TensorInt canInferTensor = _ops.NewTensorInt(canInferAttentionMask ? 1 : 0);
             TensorInt attentionMask = _ops.Where(canInferTensor, attentionMaskFromPadding, defaultAttentionMask);
             return attentionMask;
         }

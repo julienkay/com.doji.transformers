@@ -21,7 +21,7 @@ namespace Doji.AI.Transformers {
             TensorInt isDone = Ops.Zeros<TensorInt>(new TensorShape(inputIds.shape[0]));
             TensorInt lastTokenInputs = Ops.Slice(inputIds, .., ^1);
             foreach (int eosToken in EosTokenId) {
-                using TensorInt eos = new TensorInt(eosToken);
+                TensorInt eos = Ops.NewTensorInt(eosToken);
                 isDone = Ops.Or(isDone, Ops.Equal(lastTokenInputs, eos));
             }
             return isDone;
