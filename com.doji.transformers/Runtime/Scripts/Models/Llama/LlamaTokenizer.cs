@@ -153,7 +153,7 @@ namespace Doji.AI.Transformers {
                     if (prevIsSpecial && i == 1 && AddPrefixSpace && !token.StartsWith(SPIECE_UNDERLINE)) {
                         outString += " ";
                     }
-                    currentSubTokens.Add(_spModel.MapTokenToId(token).Value);
+                    currentSubTokens.Add(_spModel.MapTokenToId(token) ?? 0);
                     prevIsSpecial = false;
                 }
             }

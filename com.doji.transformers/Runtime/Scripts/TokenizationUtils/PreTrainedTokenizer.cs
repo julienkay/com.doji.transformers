@@ -506,7 +506,7 @@ namespace Doji.AI.Transformers {
                     currentSubText.Add(token);
                 }
             }
-            if (currentSubText != null) {
+            if (currentSubText != null && currentSubText.Count > 0) {
                 subTexts.Add(ConvertTokensToString(currentSubText));
             }
 
