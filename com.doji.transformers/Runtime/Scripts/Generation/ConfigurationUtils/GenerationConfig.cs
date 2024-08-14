@@ -342,7 +342,7 @@ namespace Doji.AI.Transformers {
             // Cache implementation
             CacheImplementation = null;
             CacheConfig = null;
-            ReturnLegacyCache = true;
+            ReturnLegacyCache = false;
 
             //Prompt lookup decoding
             PromptLookupNumTokens = null;
