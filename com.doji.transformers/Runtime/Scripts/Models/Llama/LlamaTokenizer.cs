@@ -102,7 +102,7 @@ namespace Doji.AI.Transformers {
         /// </summary>
         protected override List<string> _Tokenize(string text) {
             var tokens = _spModel.Encode(text, out string normalized);
-            if (Legacy || (!(text.StartsWith(SPIECE_UNDERLINE) || text.StartsWith(" ")))) {
+            if (Legacy || !text.StartsWith(SPIECE_UNDERLINE) && !text.StartsWith(" ")) {
                 return ToStringList(tokens);
             }
             tokens = _spModel.Encode(UnkToken + text, out string normalized2);

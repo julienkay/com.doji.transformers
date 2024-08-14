@@ -467,6 +467,10 @@ namespace Doji.AI.Transformers {
         /// </summary>
         protected abstract string ConvertIdToToken(int index);
 
+        protected override string ConvertTokensToString(List<string> tokens) {
+            return string.Join(" ", tokens);
+        }
+
         public override string Decode(
             List<int> tokenIds,
             bool skipSpecialTokens = false,
@@ -489,9 +493,9 @@ namespace Doji.AI.Transformers {
             List<string> currentSubText = new List<string>();
 
             foreach (var token in filteredTokens) {
-                /*if (skipSpecialTokens && AllSpecialIds.Contains(token)) {
+                if (skipSpecialTokens && AllSpecialTokens.Contains(token)) {
                     continue;
-                }*/
+                }
 
                 if (legacyAddedTokens.Contains(token)) {
                     if (currentSubText.Count > 0) {
