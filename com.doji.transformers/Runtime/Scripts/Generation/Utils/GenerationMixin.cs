@@ -28,7 +28,7 @@ namespace Doji.AI.Transformers {
         /// <summary>
         /// Generates sequences of token ids for models with a language modeling head.
         /// </summary>
-        public void Generate(
+        public ModelOutput Generate(
             TensorInt inputs,
             GenerationConfig generationConfig,
             PreTrainedModel assistantModel = null,
@@ -205,6 +205,7 @@ namespace Doji.AI.Transformers {
             var preparedStoppingCriteria = GetStoppingCriteria(generationConfig, stoppingCriteria, tokenizer);
 
             // 10. go into different generation modes
+            ModelOutput result = null;
             if (generationMode == GenerationMode.ASSISTED_GENERATION) {
                 if (generationConfig.NumReturnSequences > 1) {
                     throw new ArgumentException("num_return_sequences has to be 1 when doing assisted generate, but is " + generationConfig.NumReturnSequences);
@@ -238,7 +239,7 @@ namespace Doji.AI.Transformers {
                     : null;
 
                 // 13. run assisted generate
-                var result = AssistedDecoding(
+                result = AssistedDecoding(
                     inputIds,
                     candidate_generator,
                     preparedLogitsProcessor,
@@ -256,7 +257,7 @@ namespace Doji.AI.Transformers {
                     ? GetLogitsWarper(generationConfig)
                     : null;
 
-                var result = DolaDecoding(
+                result = DolaDecoding(
                     inputIds,
                     generationConfig.DolaLayers,
                     preparedLogitsProcessor,
@@ -274,7 +275,7 @@ namespace Doji.AI.Transformers {
                     throw new ArgumentException("contrastive search is not supported with stateful models, such as " + GetType().Name);
                 }
 
-                var result = ContrastiveSearch(
+                result = ContrastiveSearch(
                     inputIds,
                     preparedLogitsProcessor,
                     preparedStoppingCriteria,
@@ -297,7 +298,7 @@ namespace Doji.AI.Transformers {
                 );
 
                 // 13. run sample (it degenerates to greedy search when `generationConfig.do_sample=False`)
-                var result = Sample(
+                result = Sample(
                     inputIds,
                     preparedLogitsProcessor,
                     preparedLogitsWarper,
@@ -331,7 +332,7 @@ namespace Doji.AI.Transformers {
                 );
 
                 // 14. run beam sample
-                var result = BeamSearch(
+                result = BeamSearch(
                     inputIds,
                     beamScorer,
                     preparedLogitsProcessor,
@@ -361,7 +362,7 @@ namespace Doji.AI.Transformers {
                 );
 
                 // 13. run beam search
-                var result = GroupBeamSearch(
+                result = GroupBeamSearch(
                     inputIds,
                     beamScorer,
                     preparedLogitsProcessor,
@@ -444,12 +445,14 @@ namespace Doji.AI.Transformers {
                         modelKwargs
                     );*/
                 }
+            } else {
+                throw new ArgumentException($"Invalid GenerationMode: {generationMode}");
             }
 
             if (generationConfig.ReturnLegacyCache) {
                 Log.Warning("The generation config specifies 'return_legacy_cache. But legacy cache is not supported in this library.");
             }
-            //return result;
+            return result;
         }
 
         private object GetCandidateGenerator(GenerationConfig generationConfig, TensorInt inputIds, TensorInt inputsTensor, object assistantModel, object logitsProcessor, Kwargs modelKwargs) {
@@ -504,15 +507,15 @@ namespace Doji.AI.Transformers {
             return warpers;
         }
 
-        private object AssistedDecoding(TensorInt inputIds, object candidateGenerator, object logitsProcessor, object logitsWarper, object stoppingCriteria, GenerationConfig generationConfig, object streamer, Kwargs modelKwargs) {
+        private ModelOutput AssistedDecoding(TensorInt inputIds, object candidateGenerator, object logitsProcessor, object logitsWarper, object stoppingCriteria, GenerationConfig generationConfig, object streamer, Kwargs modelKwargs) {
             throw new NotImplementedException();
         }
 
-        private object DolaDecoding(TensorInt inputIds, object dola_layers, object logitsProcessor, object logitsWarper, object stoppingCriteria, GenerationConfig generationConfig, object streamer, Kwargs modelKwargs) {
+        private ModelOutput DolaDecoding(TensorInt inputIds, object dola_layers, object logitsProcessor, object logitsWarper, object stoppingCriteria, GenerationConfig generationConfig, object streamer, Kwargs modelKwargs) {
             throw new NotImplementedException();
         }
 
-        private object ContrastiveSearch(TensorInt inputIds, object logitsProcessor, object stoppingCriteria, GenerationConfig generationConfig, object streamer, Kwargs modelKwargs) {
+        private ModelOutput ContrastiveSearch(TensorInt inputIds, object logitsProcessor, object stoppingCriteria, GenerationConfig generationConfig, object streamer, Kwargs modelKwargs) {
             throw new NotImplementedException();
         }
 
@@ -583,7 +586,6 @@ namespace Doji.AI.Transformers {
                     continue; // Don't waste resources running unnecessary code
 
                 var shape = (outputs["logits"] as TensorFloat).shape;
-                Log.Info((outputs["logits"] as TensorFloat).shape);
                 TensorFloat nextTokenLogits = _ops.Slice(outputs["logits"] as TensorFloat, .., ^1, ..);
 
                 // pre-process distribution
@@ -666,15 +668,15 @@ namespace Doji.AI.Transformers {
             }
         }
 
-        private object BeamSearch(TensorInt inputIds, object beam_scorer, object logitsProcessor, object logitsWarper, object stoppingCriteria, GenerationConfig generationConfig, Kwargs modelKwargs) {
+        private ModelOutput BeamSearch(TensorInt inputIds, object beam_scorer, object logitsProcessor, object logitsWarper, object stoppingCriteria, GenerationConfig generationConfig, Kwargs modelKwargs) {
             throw new NotImplementedException();
         }
 
-        private object GroupBeamSearch(TensorInt inputIds, object beam_scorer, object logitsProcessor, object stoppingCriteria, GenerationConfig generationConfig, Kwargs modelKwargs) {
+        private ModelOutput GroupBeamSearch(TensorInt inputIds, object beam_scorer, object logitsProcessor, object stoppingCriteria, GenerationConfig generationConfig, Kwargs modelKwargs) {
             throw new NotImplementedException();
         }
 
-        private object ConstrainedBeamSearch(TensorInt inputIds, object constrained_beam_scorer, object logitsProcessor, object stoppingCriteria, GenerationConfig generationConfig, Kwargs modelKwargs) {
+        private ModelOutput ConstrainedBeamSearch(TensorInt inputIds, object constrained_beam_scorer, object logitsProcessor, object stoppingCriteria, GenerationConfig generationConfig, Kwargs modelKwargs) {
             throw new NotImplementedException();
         }
 
