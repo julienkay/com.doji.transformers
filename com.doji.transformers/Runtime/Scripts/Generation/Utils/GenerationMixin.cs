@@ -452,6 +452,9 @@ namespace Doji.AI.Transformers {
             if (generationConfig.ReturnLegacyCache) {
                 Log.Warning("The generation config specifies 'return_legacy_cache. But legacy cache is not supported in this library.");
             }
+
+            FlushTempTensors(result);
+
             return result;
         }
 
@@ -787,6 +790,7 @@ namespace Doji.AI.Transformers {
                 //TODO: Possible to do this without readback?
                 TensorInt pastPositions = modelKwargs.Pop("cache_position") as TensorInt;
                 pastPositions = pastPositions.ReadbackAndClone();
+                _ops.WaveOwnership(pastPositions);
                 TensorInt newPositions = _ops.NewTensorInt(new TensorShape(numNewTokens), ArrayUtils.Arange(pastPositions[-1] + 1, pastPositions[-1] + numNewTokens + 1));
                 modelKwargs["cache_position"] = _ops.Cat(pastPositions, newPositions);
             }
@@ -1118,10 +1122,7 @@ namespace Doji.AI.Transformers {
 
             TensorInt bos = _ops.NewTensorInt(bosTokenId.Value);
             TensorInt ones = _ops.Ones<TensorInt>(new TensorShape(batch_size, 1));
-            TensorInt mul = TensorInt.AllocNoData(ones.shape);
-
-            _backend.Mul(ones, bos, mul);
-            inputs = mul;
+            inputs = _ops.Mul(ones, bos);
         }
 
         private bool SupportsDefaultDynamicCache() {
@@ -1372,6 +1373,23 @@ namespace Doji.AI.Transformers {
             }
 
             return _cache;
+        }
+
+        /// <summary>
+        /// Disposes all temporary tensors (except the output tensors in <paramref name="result"/>).
+        /// </summary>
+        private void FlushTempTensors(ModelOutput result) {
+            List<Tensor> tmp = new List<Tensor>();
+            foreach(var kvp in result) {
+                if (kvp.Value is Tensor tensor) {
+                    _ops.TakeOwnership(tensor);
+                    tmp.Add(tensor);
+                }
+            }
+            _ops.FlushTensors();
+            foreach(Tensor tensor1 in tmp) {
+                _ops.WaveOwnership(tensor1);
+            }
         }
     }
 }
