@@ -67,7 +67,7 @@ namespace Doji.AI.Transformers {
             _ops?.Dispose();
         }
 
-        public abstract ModelOutput Execute(Dictionary<string, object> modelInputs);
+        public abstract ModelOutput Execute(Dictionary<string, Tensor> modelInputs);
 
         /// <summary>
         /// Loads a Sentis <see cref="Model"/> from a <see cref="ModelAsset"/> in Resources.

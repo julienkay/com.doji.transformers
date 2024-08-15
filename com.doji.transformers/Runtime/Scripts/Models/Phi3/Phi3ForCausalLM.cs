@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
 using Unity.Sentis;
 
 namespace Doji.AI.Transformers {
@@ -19,14 +18,13 @@ namespace Doji.AI.Transformers {
             return FromPretrained<Phi3ForCausalLM>(model, backend);
         }
 
-        public override ModelOutput Execute(Dictionary<string, object> modelInputs) {
-            Dictionary<string, Tensor> tensorInputs = modelInputs.Where(kvp => kvp.Value is Tensor).ToDictionary(kvp => kvp.Key, kvp => (Tensor)kvp.Value);
-            _worker.Execute(tensorInputs);
+        public override ModelOutput Execute(Dictionary<string, Tensor> modelInputs) {
+            _worker.Execute(modelInputs);
             var logits = _worker.PeekOutput("logits") as TensorFloat;
             return new CausalLMOutputWithPast(logits);
         }
 
-        protected override Dictionary<string, object> PrepareInputsForGeneration(
+        protected override Dictionary<string, Tensor> PrepareInputsForGeneration(
             TensorInt inputIds,
             Kwargs kwargs)
         {
@@ -35,7 +33,6 @@ namespace Doji.AI.Transformers {
             TensorFloat inputsEmbeds = kwargs.Get<TensorFloat>("inputs_embeds");
             TensorInt cachePosition = kwargs.Get<TensorInt>("cache_position");
             TensorInt positionIds = kwargs.Get<TensorInt>("position_ids");
-            bool useCache = kwargs.Get("use_cache", true);
 
             // If we have cache: let's slice `inputIds` through `cachePosition`, to keep only the unprocessed tokens
             // Exception 1: when passing input_embeds, inputIds may be missing entries
@@ -57,7 +54,7 @@ namespace Doji.AI.Transformers {
                 }
             }
 
-            Dictionary<string, object> modelInputs;
+            Dictionary<string, Tensor> modelInputs;
             //if `inputsEmbeds` are passed, we only want to use them in the 1st generation step
             if (inputsEmbeds != null && cachePosition[0] == 0) {
                 modelInputs = new() { { "inputs_embeds", inputsEmbeds }, { "input_ids", null } };
@@ -68,9 +65,9 @@ namespace Doji.AI.Transformers {
             TensorShape shape;
             if (pastKeyValues is StaticCache && attentionMask.shape.rank == 2) {
                 if (modelInputs["inputs_embeds"] != null) {
-                    shape = (modelInputs["inputs_embeds"] as Tensor).shape;
+                    shape = modelInputs["inputs_embeds"].shape;
                 } else {
-                    shape = (modelInputs["input_ids"] as Tensor).shape;
+                    shape = modelInputs["input_ids"].shape;
                 }
                 int batchSize = shape[0];
                 int sequenceLength = shape[1];
@@ -87,10 +84,25 @@ namespace Doji.AI.Transformers {
                     batch_size = batch_size,
                 );*/
             }
+
+            // prepare past_key_values
+            Cache cache = kwargs["past_key_values"] as Cache;
+            for (int i = 0; i < 32; i++) {
+                string key = $"past_key_values.{i}.key";
+                string value = $"past_key_values.{i}.value";
+                if (cache.GetSeqLength() == 0) {
+                    // create empty tensors for initial loop
+                    modelInputs[key] = _ops.AllocNoData<TensorFloat>(new TensorShape(inputIds.shape[0], 32, 0, 96));
+                    modelInputs[value] = _ops.AllocNoData<TensorFloat>(new TensorShape(inputIds.shape[0], 32, 0, 96));
+                    cache.Update(modelInputs[key], modelInputs[value], i);
+                } else {
+                    modelInputs[key] = cache[i].Key;
+                    modelInputs[value] = cache[i].Value;
+                }
+            }
+
             modelInputs["position_ids"] = positionIds;
             modelInputs["cache_position"] = cachePosition;
-            modelInputs["past_key_values"] = pastKeyValues;
-            modelInputs["use_cache"] = useCache;
             modelInputs["attention_mask"] = attentionMask;
             return modelInputs;
         }

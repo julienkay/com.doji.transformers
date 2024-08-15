@@ -22,14 +22,14 @@ namespace Doji.AI.Transformers {
         /// <summary>
         /// Load a config file from a Resources folder.
         /// </summary>
-        protected static T LoadConfigFromTextAsset<T>(string resourcePath) {
+        protected static U LoadConfigFromTextAsset<U>(string resourcePath) {
             TextAsset textAsset = Resources.Load<TextAsset>(resourcePath);
             if (textAsset == null) {
                 //Debug.LogError($"The TextAsset file was not found at: '{path}'");
                 return default;
             }
 
-            T deserializedObject = JsonConvert.DeserializeObject<T>(textAsset.text);
+            U deserializedObject = JsonConvert.DeserializeObject<U>(textAsset.text);
             Resources.UnloadAsset(textAsset);
             return deserializedObject;
         }

@@ -21,7 +21,7 @@ namespace Doji.AI.Transformers {
 
         private Cache _cache;
 
-        protected virtual Dictionary<string, object> PrepareInputsForGeneration(TensorInt inputIds, Kwargs kwargs) {
+        protected virtual Dictionary<string, Tensor> PrepareInputsForGeneration(TensorInt inputIds, Kwargs kwargs) {
             throw new NotImplementedException($"A model class needs to define a {nameof(PrepareInputsForGeneration)} method in order to use `.Generate()`.");
         }
 
@@ -180,6 +180,7 @@ namespace Doji.AI.Transformers {
                     throw new ArgumentException("Cache was not null. This is not expected.");
                 }
             }
+            (modelKwargs[cacheName] as Cache).Ops = _ops;
 
             ValidateGeneratedLength(generationConfig, inputIdsLength, hasDefaultMaxLength);
 
@@ -585,6 +586,9 @@ namespace Doji.AI.Transformers {
 
                 // forward pass to get next token
                 var outputs = Execute(modelInputs);
+                if (modelKwargs.Get("use_cache", true)) {
+                    FillWithPastKeyValues(outputs, modelKwargs);
+                }
 
                 if (finished)
                     continue; // Don't waste resources running unnecessary code
@@ -728,7 +732,7 @@ namespace Doji.AI.Transformers {
             }
         }
 
-        private (string cacheName, Tensor cache) ExtractPastFromModelOutput(ModelOutput outputs) {
+        private void ExtractPastFromModelOutput(Kwargs modelKwargs, ModelOutput outputs) {
             object pastKeyValues = null;
             string cacheName = "past_key_values";
             if (outputs.TryGetValue("past_key_values", out object pastKV)) {
@@ -741,7 +745,7 @@ namespace Doji.AI.Transformers {
                 pastKeyValues = cacheParams;
                 cacheName = "cache_params";
             }
-            return (cacheName, pastKeyValues as Tensor);
+            modelKwargs[cacheName] = pastKeyValues as Cache;
         }
 
         private void UpdateModelKwargsForGeneration(
@@ -751,8 +755,7 @@ namespace Doji.AI.Transformers {
             int numNewTokens = 1)
         {
             // update past_key_values keeping its naming used in model code
-            (string cacheName, Tensor cache) = ExtractPastFromModelOutput(outputs);
-            modelKwargs[cacheName] = cache;
+            ExtractPastFromModelOutput(modelKwargs, outputs);
             if (outputs.ContainsKey("state")) {
                 modelKwargs["state"] = outputs.Get("state");
             }
@@ -1030,7 +1033,8 @@ namespace Doji.AI.Transformers {
             // retrieve all kwargs that are non-None or non-model input related.
             // some encoder-decoder models have different names for model and encoder
             if (Config.IsEncoderDecoder && HasEncoder /* && Encoder.MainInputName != MainInputName*/) {
-                inputName = "";// Encoder.MainInputName
+                throw new NotImplementedException("Encoder.MainInputName");
+                //inputName = Encoder.MainInputName;
             } else {
                 inputName = MainInputName;
             }
@@ -1384,6 +1388,17 @@ namespace Doji.AI.Transformers {
             }
 
             return _cache;
+        }
+
+        private void FillWithPastKeyValues(ModelOutput output, Kwargs modelKwargs) {
+            Cache cache = modelKwargs.Get<Cache>("past_key_values");
+            int n = 32; //TODO: Should get this from model config (num_key_value_heads?)
+            for (int i = 0; i < n; i++) {
+                string key = $"present.{i}.key";
+                string value = $"present.{i}.value";
+                cache.Update(_worker.PeekOutput(key), _worker.PeekOutput(value), i);
+            }
+            output["past_key_values"] = cache;
         }
 
         /// <summary>
