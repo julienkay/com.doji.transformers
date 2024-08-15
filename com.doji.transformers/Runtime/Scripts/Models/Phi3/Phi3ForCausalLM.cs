@@ -10,7 +10,7 @@ namespace Doji.AI.Transformers {
         protected override bool AcceptsAttentionMask => true;
         protected override bool HasEncoder => false;
 
-        public Phi3ForCausalLM(Model model, PretrainedConfig config, BackendType backend = BackendType.GPUCompute) : base(model, config, backend) { }
+        public Phi3ForCausalLM(Model model, PretrainedConfig config, GenerationConfig generationConfig = null, BackendType backend = BackendType.GPUCompute) : base(model, config, generationConfig, backend) { }
 
         /// <summary>
         /// Instantiate a Phi3 model from a JSON configuration file.

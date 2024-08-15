@@ -30,7 +30,7 @@ namespace Doji.AI.Transformers {
         /// </summary>
         public ModelOutput Generate(
             TensorInt inputs,
-            GenerationConfig generationConfig,
+            GenerationConfig generationConfig = null,
             PreTrainedModel assistantModel = null,
             object streamer = null,
             PreTrainedTokenizerBase tokenizer = null,
@@ -38,6 +38,7 @@ namespace Doji.AI.Transformers {
         {
             //ValidateModelClass();
             var modelKwargs = kwargs ??= new Kwargs();
+            PrepareGenerationConfig(ref generationConfig);
             //ValidateModelKwargs();
             ValidateAssistant(assistantModel);
 
@@ -168,10 +169,10 @@ namespace Doji.AI.Transformers {
             } else if (generationConfig.CacheImplementation == null && SupportsDefaultDynamicCache()) {
                 // Use DynamicCache() instance by default.
                 var past = (string)modelKwargs.Get(cacheName, null);
-                bool requires_cross_attention_cache = Config.IsEncoderDecoder || modelKwargs.ContainsKey("encoder_outputs");
+                bool requiresCrossAttentionCache = Config.IsEncoderDecoder || modelKwargs.ContainsKey("encoder_outputs");
                 if (past == null) {
                     modelKwargs[cacheName] =
-                        !requires_cross_attention_cache ?
+                        !requiresCrossAttentionCache ?
                         new DynamicCache() :
                         new EncoderDecoderCache(new DynamicCache(), new DynamicCache());
                     useDynamicCacheByDefault = true;
@@ -1297,6 +1298,16 @@ namespace Doji.AI.Transformers {
             }
 
             return generationConfig;
+        }
+
+        /// <summary>
+        /// Prepares the base generation config.
+        /// </summary>
+        private void PrepareGenerationConfig(ref GenerationConfig generationConfig) {
+            // priority: `generationConfig` argument > `model.GenerationConfig` (the default generation config)
+            if (generationConfig == null) {
+                generationConfig = GenerationConfig;
+            }
         }
 
         /// <summary>

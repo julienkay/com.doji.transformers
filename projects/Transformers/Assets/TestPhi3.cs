@@ -24,9 +24,7 @@ public class TestPhi3 : MonoBehaviour {
         //var token_type_ids = encodings.TokenTypeIds.ToArray();
             
         using TensorInt inputTensor = new TensorInt(new TensorShape(1, inputIds.Length), inputIds);
-        var generationConfig = GenerationConfig.Deserialize(File.ReadAllText("Assets/StreamingAssets/julienkay/Phi-3-mini-4k-instruct_no_cache_uint8/generation_config.json"));
-        generationConfig.MaxNewTokens = 30;
-        var result = _model.Generate(inputTensor, generationConfig);
+        _model.GenerationConfig.MaxNewTokens = 30;
         var seq = result.Get<TensorInt>("sequences");
         seq = seq.ReadbackAndClone();
         string output = _tokenizer.Decode(seq.ToReadOnlyArray().ToList(), skipSpecialTokens: true, cleanUpTokenizationSpaces: false);

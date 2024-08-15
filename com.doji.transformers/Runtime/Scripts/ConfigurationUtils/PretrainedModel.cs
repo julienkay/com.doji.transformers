@@ -5,11 +5,12 @@ using UnityEngine;
 using System.Collections.Generic;
 
 namespace Doji.AI.Transformers {
-
     public abstract partial class PreTrainedModel : Configurable<PretrainedConfig>, IDisposable {
 
         public const string MODEL_NAME = "model";
         public virtual string MainInputName { get; } = "input_ids";
+
+        public GenerationConfig GenerationConfig { get; }
 
         protected bool IsStateful { get; } = false;
 
@@ -45,9 +46,10 @@ namespace Doji.AI.Transformers {
         protected IWorker _worker;
         protected Ops _ops;
 
-        public PreTrainedModel(Model model, PretrainedConfig config, BackendType backend) : base(config) {
+        public PreTrainedModel(Model model, PretrainedConfig config, GenerationConfig generationConfig = null, BackendType backend = BackendType.GPUCompute) : base(config) {
             Backend = backend;
             InitializeNetwork(model);
+            GenerationConfig = generationConfig;
         }
 
         protected virtual void InitializeNetwork(Model model) {
@@ -93,9 +95,9 @@ namespace Doji.AI.Transformers {
             return LoadFromModelAsset(model.ResourcePathForModel(MODEL_NAME));
         }
 
-        private static C FromConfig<C>(PretrainedConfig config, Model model, BackendType backend) where C : PreTrainedModel {
+        private static C FromConfig<C>(PretrainedConfig config, Model model, GenerationConfig generationConfig, BackendType backend) where C : PreTrainedModel {
             try {
-                return (C)Activator.CreateInstance(typeof(C), model, config, backend);
+                return (C)Activator.CreateInstance(typeof(C), model, config, generationConfig, backend);
             } catch (Exception e) {
                 Log.Error($"{e.GetType().Name} when trying to create class of type '{typeof(C).Name}'");
                 throw e;
@@ -104,9 +106,11 @@ namespace Doji.AI.Transformers {
 
         protected static C FromPretrained<C>(string pretrainedModelNameOrPath, BackendType backend) where C : PreTrainedModel {
             string configFile = Path.Combine(pretrainedModelNameOrPath, CONFIG_NAME);
+            string generationConfigFile = Path.Combine(pretrainedModelNameOrPath, "generation_config.json");
             var config = LoadConfig(configFile) ?? throw new FileNotFoundException($"File '{configFile}' not found for: '{typeof(C).Name}'");
             var model = LoadModel(pretrainedModelNameOrPath) ?? throw new FileNotFoundException($"Model file for '{pretrainedModelNameOrPath}' not found for: '{typeof(C).Name}'");
-            return FromConfig<C>(config, model, backend);
+            var generationConfig = Load<GenerationConfig>(generationConfigFile);
+            return FromConfig<C>(config, model, generationConfig, backend);
         }
     }
 }
