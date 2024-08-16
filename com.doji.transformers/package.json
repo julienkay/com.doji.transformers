@@ -13,5 +13,12 @@
     "email": "support@doji-tech.com",
     "url": "https://www.doji-tech.com/"
   },
-  "documentationUrl": "https://docs.doji-tech.com/com.doji.transformers/"
+  "documentationUrl": "https://docs.doji-tech.com/com.doji.transformers/",
+  "samples": [
+    {
+      "displayName": "Phi-3 Mini Sample",
+      "description": "Basic example on generating text with a Phi-3 Mini-4K-Instruct model.",
+      "path": "Samples~/01-Phi3ForCausalLMSample"
+    }
+  ]
 }
