@@ -1,7 +1,7 @@
-﻿using System;
+﻿using static Doji.AI.Transformers.TokenizationUtils;
+using System;
 using System.Collections.Generic;
 using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
 
 namespace Doji.AI.Transformers {
@@ -12,7 +12,7 @@ namespace Doji.AI.Transformers {
     /// </summary>
     public class ClipTokenizer : PreTrainedTokenizer {
 
-        public int VocabSize {
+        protected override int VocabSize {
             get {
                 return Vocab.Encoder.Count;
             }
@@ -30,26 +30,11 @@ namespace Doji.AI.Transformers {
         /// <summary>
         /// Initializes a new clip tokenizer.
         /// </summary>
-        public ClipTokenizer(Vocab vocab, string merges, TokenizerConfig config = null) {
-            Initialize(vocab, merges, config ?? new TokenizerConfig());
-        }
-
-        protected void Initialize(
-            Vocab vocab,
-            string merges,
-            TokenizerConfig config,
-            Dictionary<int, AddedToken> addedTokensDecoder = null,
-            int modelMaxLength = int.MaxValue,
-            Side paddingSide = Side.Right,
-            Side truncationSide = Side.Right,
-            List<string> modelInputNames = null,
-            bool cleanUpTokenizationSpaces = true,
-            bool splitSpecialTokens = false)
-        {
-            config.UnkToken ??= new AddedToken("<|endoftext|>");
-            config.BosToken ??= new AddedToken("<|startoftext|>");
-            config.EosToken ??= new AddedToken("<|endoftext|>");
-            config.PadToken ??= new AddedToken("<|endoftext|>");
+        public ClipTokenizer(Vocab vocab, string merges, TokenizerConfig config = null) : base(config) {
+            Config.UnkToken ??= new AddedToken("<|endoftext|>");
+            Config.BosToken ??= new AddedToken("<|startoftext|>");
+            Config.EosToken ??= new AddedToken("<|endoftext|>");
+            Config.PadToken ??= new AddedToken("<|endoftext|>");
 
             // TODO: BasicTokenizer only a fallback, implement ftfy.fix_text instead?
             _nlp = new BasicTokenizer();
@@ -83,14 +68,7 @@ namespace Doji.AI.Transformers {
                 RegexOptions.IgnoreCase
             );
 
-            base.Initialize(
-                config,
-                paddingSide,
-                truncationSide,
-                modelInputNames,
-                cleanUpTokenizationSpaces,
-                splitSpecialTokens
-            );
+            base.Initialize();
         }
 
         protected override Dictionary<string, int> GetVocab() {
@@ -108,56 +86,13 @@ namespace Doji.AI.Transformers {
             return CombineLists(bosToken, TokenIds0, eosToken, eosToken, TokenIds1, eosToken);
 
         }
+
         private List<int> CombineLists(params List<int>[] lists) {
             List<int> result = new List<int>();
             foreach (var list in lists) {
                 result.AddRange(list);
             }
             return result;
-        }
-
-        /// <summary>
-        /// Returns list of utf-8 byte and a mapping to unicode strings.
-        /// We specifically avoid mapping to whitespace/control
-        /// characters the bpe code barfs on.
-        /// 
-        /// The reversible bpe codes work on unicode strings.
-        /// This means you need a large # of unicode characters in your
-        /// vocab if you want to avoid UNKs. When you're at something
-        /// like a 10B token dataset you end up needing around 5K for
-        /// decent coverage. This is a significant percentage of your
-        /// normal, say, 32K bpe vocab.To avoid that, we want lookup
-        /// tables between utf-8 bytes and unicode strings.
-        /// 
-        /// TODO: Look into C# equivalent for @lru_cache()
-        /// </summary>
-        internal static Dictionary<int, char> BytesToUnicode() {
-            List<int> bs = GetRange(33, 127) // ! to ~
-                .Concat(GetRange(161, 173))  // ¡ to ¬
-                .Concat(GetRange(174, 256))  // ® to ÿ
-                .ToList();
-
-            List<int> cs = new List<int>(bs);
-            int n = 0;
-
-            for (int b = 0; b < 256; b++) {
-                if (!bs.Contains(b)) {
-                    bs.Add(b);
-                    cs.Add(256 + n);
-                    n++;
-                }
-            }
-
-            Dictionary<int, char> result = new Dictionary<int, char>();
-            for (int i = 0; i < bs.Count; i++) {
-                result.Add(bs[i], (char)cs[i]);
-            }
-
-            return result;
-        }
-
-        private static IEnumerable<int> GetRange(int start, int end) {
-            return Enumerable.Range(start, end - start);
         }
 
         /// <summary>
@@ -201,10 +136,10 @@ namespace Doji.AI.Transformers {
         public override List<int> CreateTokenTypeIdsFromSequences(List<int> TokenIds0, List<int> TokenIds1 = null) {
             int n;
             if (TokenIds1 == null) {
-                // bos_token + token_ids_0 + eos_token
+                // len(bos_token + token_ids_0 + eos_token)
                 n = TokenIds0.Count + 2;
             } else {
-                // (bos_token + token_ids_0 + eos_token + eos_token + token_ids_1 + eos_token
+                // len(bos_token + token_ids_0 + eos_token + eos_token + token_ids_1 + eos_token)
                 n = TokenIds0.Count + TokenIds1.Count + 4;
             }
             return Enumerable.Repeat(0, n).ToList();
@@ -292,6 +227,7 @@ namespace Doji.AI.Transformers {
             }
 
             foreach (var match in _pat.Matches(text)) {
+                // Maps all our bytes to unicode strings, avoiding control tokens of the BPE (spaces in our case)
                 var token = string.Join("", System.Text.Encoding.UTF8.GetBytes(match.ToString()).Select(b => _byteEncoder[b]));
                 bpeTokens.AddRange(bpe(token).Split(' '));
             }
@@ -299,16 +235,31 @@ namespace Doji.AI.Transformers {
             return bpeTokens;
         }
 
-        /// <summary>
-        /// Converts a token into an id using the vocab.
-        /// </summary>
         protected override int ConvertTokenToId(string token) {
             var encoder = Vocab.Encoder;
-            if (encoder.TryGetValue(token, out int id)) {
-                return id;
-            } else {
-                return encoder.GetValueOrDefault(UnkToken);
-            }
+            return encoder.GetValueOrDefault(token, encoder[UnkToken]);
         }
+
+        protected override string ConvertIdToToken(int index) {
+            return Vocab.Decoder[index];
+        }
+
+        protected override string ConvertTokensToString(List<string> tokens) {
+            string text = string.Join("", tokens);
+
+            List<byte> byteList = new List<byte>();
+            foreach (char c in text) {
+                if (_byteDecoder.ContainsKey(c)) {
+                    byteList.Add((byte)_byteDecoder[c]);
+                } else {
+                    throw new Exception($"Character '{c}' not found in byte decoder.");
+                }
+            }
+
+            byte[] byteArray = byteList.ToArray();
+            string decodedText = System.Text.Encoding.UTF8.GetString(byteArray).Replace("</w>", " ").Trim();
+            return decodedText;
+        }
+
     }
 }

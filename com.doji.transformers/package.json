@@ -1,16 +1,24 @@
 {
   "name": "com.doji.transformers",
-  "version": "0.0.2",
+  "version": "0.1.0",
   "displayName": "Transformers",
   "description": "State-of-the-art transformer models to perform tasks on different modalities such as text, vision, and audio with Unity Sentis",
   "dependencies": {
-    "com.unity.sentis": "1.3.0-pre.3",
-    "com.unity.nuget.newtonsoft-json": "3.2.1"
+    "com.unity.sentis": "1.6.0-pre.1",
+    "com.unity.nuget.newtonsoft-json": "3.2.1",
+    "com.doji.sentencepiece": "0.0.0"
   },
   "author": {
     "name": "Doji Technologies",
     "email": "support@doji-tech.com",
     "url": "https://www.doji-tech.com/"
   },
-  "documentationUrl": "https://docs.doji-tech.com/com.doji.transformers/"
+  "documentationUrl": "https://docs.doji-tech.com/com.doji.transformers/",
+  "samples": [
+    {
+      "displayName": "Phi-3 Mini Sample",
+      "description": "Basic example on generating text with a Phi-3 Mini-4K-Instruct model.",
+      "path": "Samples~/01-Phi3ForCausalLMSample"
+    }
+  ]
 }

@@ -12,6 +12,7 @@ namespace Doji.AI.Transformers {
             public Truncation Truncation        { get; set; }
             public int? MaxLength               { get; set; }
             public int Stride                   { get; set; }
+            public bool IsSplitIntoWords        { get; set; }
             public int? PadToMultipleOf         { get; set; }
             public bool? ReturnTokenTypeIds     { get; set; }
             public bool? ReturnAttentionMask    { get; set; }
@@ -30,6 +31,7 @@ namespace Doji.AI.Transformers {
                 Truncation truncation = Truncation.None,
                 int? maxLength = null,
                 int stride = 0,
+                bool isSplitIntoWords = false,
                 int? padToMultipleOf = null,
                 bool? returnTokenTypeIds = null,
                 bool? returnAttentionMask = null,
@@ -47,6 +49,7 @@ namespace Doji.AI.Transformers {
                 Truncation              = truncation;
                 MaxLength               = maxLength;
                 Stride                  = stride;
+                IsSplitIntoWords        = isSplitIntoWords;
                 PadToMultipleOf         = padToMultipleOf;
                 ReturnTokenTypeIds      = returnTokenTypeIds;
                 ReturnAttentionMask     = returnAttentionMask;

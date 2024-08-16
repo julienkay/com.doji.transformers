@@ -16,48 +16,37 @@ namespace Doji.AI.Transformers {
     /// augmentation methods of the various underlying dictionary structures
     /// (BPE, sentencepiece...).
     /// </summary>
-    public class PreTrainedTokenizer : PreTrainedTokenizerBase {
+    public abstract class PreTrainedTokenizer : PreTrainedTokenizerBase {
 
         public bool? DoLowerCase { get; set; }
         public override bool Fast { get => false; }
 
         private Trie _tokensTrie;
-        private Dictionary<string, int> AddedTokensEncoder;
-        private Dictionary<int, AddedToken> AddedTokensDecoder;
+        protected Dictionary<string, int> AddedTokensEncoder;
+        protected Dictionary<int, AddedToken> AddedTokensDecoder;
 
-        protected override void Initialize(
-            TokenizerConfig config,
-            Side paddingSide = Side.Right,
-            Side truncationSide = Side.Right,
-            List<string> modelInputNames = null,
-            bool cleanUpTokenizationSpaces = true,
-            bool splitSpecialTokens = false,
-            Dictionary<int, AddedToken> addedTokensDecoder = null)
-        {
+        protected virtual int VocabSize { get => throw new NotImplementedException(); }
+
+        public PreTrainedTokenizer(TokenizerConfig config) : base(config) { }
+
+        protected override void Initialize() {
             _tokensTrie = new Trie();
 
             // init `AddedTokensDecoder` if child class did not
             AddedTokensDecoder ??= new Dictionary<int, AddedToken>();
 
             // if a `added_tokens_decoder` is passed, we are loading from a saved tokenizer, we overwrite 
-            if (addedTokensDecoder != null) {
-                foreach (var token in addedTokensDecoder) {
+            if (Config.AddedTokensDecoder != null) {
+                foreach (var token in Config.AddedTokensDecoder) {
                     AddedTokensDecoder[token.Key] = token.Value;
                 }
             }
             AddedTokensEncoder = AddedTokensDecoder.ToDictionary(x => (string)x.Value, x => x.Key);
 
-            // 4 init the parent class
-            base.Initialize(
-                config,
-                paddingSide,
-                truncationSide,
-                modelInputNames,
-                cleanUpTokenizationSpaces,
-                splitSpecialTokens
-            );
+            // init the parent class
+            base.Initialize();
 
-            // 4. If some of the special tokens are not part of the vocab, we add them, at the end.
+            // If some of the special tokens are not part of the vocab, we add them, at the end.
             // the order of addition is the same as self.SPECIAL_TOKENS_ATTRIBUTES following `tokenizers`
             var tokensToAdd = AllSpecialTokensExtended
                 .Where(token => !AddedTokensEncoder.ContainsKey(token))
@@ -172,8 +161,8 @@ namespace Doji.AI.Transformers {
                 );
             }
 
-            List<int> firstIds = GetInputIds(args.Text);
-            List<int> secondIds = args.TextPair != null ? GetInputIds(args.TextPair) : null;
+            List<int> firstIds = GetInputIds(args.Text, args);
+            List<int> secondIds = args.TextPair != null ? GetInputIds(args.TextPair, args) : null;
 
             return PrepareForModel(args, firstIds, secondIds);
         }
@@ -189,7 +178,7 @@ namespace Doji.AI.Transformers {
                 );
             }
 
-            System.Diagnostics.Debug.Assert(args.Text is BatchInput || args.Text is PretokenizedBatchInput);
+            Debug.Assert(args.Text is BatchInput || args.Text is PretokenizedBatchInput);
             var batch = args.Text as IBatchInput;
             bool isPretokenized = args.Text is PretokenizedBatchInput;
 
@@ -200,9 +189,9 @@ namespace Doji.AI.Transformers {
                 if (isPretokenized) {
                     firstIds = ConvertTokensToIds(input as List<string>);
                 } else {
-                    firstIds = ConvertTokensToIds(Tokenize(input as string));
+                    firstIds = ConvertTokensToIds(Tokenize(input as string, args));
                 }
-                List<int> secondIds = args.TextPair != null ? GetInputIdsBatch(args.TextPair) : null;
+                List<int> secondIds = args.TextPair != null ? GetInputIdsBatch(args.TextPair, args) : null;
                 inputIds.Add((firstIds, secondIds));
             }
 
@@ -214,15 +203,15 @@ namespace Doji.AI.Transformers {
         /// Split in words for word-based vocabulary or sub-words for sub-word-based vocabularies
         /// (BPE/SentencePieces/WordPieces). Takes care of added tokens.
         /// </summary>
-        public override List<string> Tokenize(string text) {
+        protected override List<string> Tokenize(string text, EncodingParams args) {
             bool splitSpecialTokens = SplitSpecialTokens;
 
-            text = PrepareForTokenization(text);
-            if (this is not ClipTokenizer) {
-                // original code passes args dynamically and specifically checks if all have been used
-                // TODO: need to figure out how to best implement that
-                throw new NotImplementedException();
-            }
+            text = PrepareForTokenization(text, args.IsSplitIntoWords);
+
+            // original code passes args dynamically and specifically checks if all have been used
+            // t.b.d.: Do we need to do this as well?
+            /*if kwargs:
+                logger.warning(f"Keyword arguments {kwargs} not recognized.")*/
 
             if (DoLowerCase == true) {
                 // convert non-special tokens to lowercase. Might be super slow as well?
@@ -308,10 +297,10 @@ namespace Doji.AI.Transformers {
         /// At this point <paramref name="text"/> is either of type <see cref="SingleInput"/>
         /// or <see cref="PretokenizedSingleInput"/>
         /// </summary>
-        private List<int> GetInputIds(Input text) {
+        private List<int> GetInputIds(Input text, EncodingParams args) {
             List<string> tokens;
             if (text is SingleInput input) {
-                tokens = Tokenize(input.Text);
+                tokens = Tokenize(input.Text, args);
             } else if (text is PretokenizedSingleInput pretokenizedInput) {
                 tokens = pretokenizedInput.PretokenizedText;
             } else {
@@ -325,12 +314,12 @@ namespace Doji.AI.Transformers {
         /// At this point <paramref name="text"/> is either of type <see cref="BatchInput"/>
         /// or <see cref="PretokenizedBatchInput"/>
         /// </summary>
-        private List<int> GetInputIdsBatch(Input text) {
+        private List<int> GetInputIdsBatch(Input text, EncodingParams args) {
             List<string> tokens;
             if (text is BatchInput input) {
                 tokens = new List<string>();
                 foreach (string token in input.Sequence) {
-                    tokens.AddRange(Tokenize(token));
+                    tokens.AddRange(Tokenize(token, args));
                 }
             } else if (text is PretokenizedBatchInput pretokenizedInput) {
                 tokens = new List<string>();
@@ -384,7 +373,7 @@ namespace Doji.AI.Transformers {
             return batchOutputs;
         }
 
-        protected virtual string PrepareForTokenization(string text) {
+        protected virtual string PrepareForTokenization(string text, bool isSplitIntoWords) {
             return text;
         }
 
@@ -438,8 +427,108 @@ namespace Doji.AI.Transformers {
             return ConvertTokenToId(token);
         }
 
-        protected virtual int ConvertTokenToId(string token) {
-            throw new NotImplementedException($"This tokenizer does not implement {nameof(ConvertTokenToId)}");
+        /// <summary>
+        /// Converts a token (string) in an id using the vocab.
+        /// </summary>
+        protected abstract int ConvertTokenToId(string token);
+
+        /// <summary>
+        /// Converts a single index or a sequence of indices in a token or a sequence of tokens,
+        /// using the vocabulary and added tokens.
+        /// </summary>
+        /// <param name="ids">The token id (or token ids) to convert to tokens.</param>
+        /// <param name="skipSpecialTokens">Whether or not to remove special tokens in the decoding.</param>
+        /// <returns>The decoded token(s).</returns>
+        protected List<string> ConvertIdsToTokens(List<int> ids, bool skipSpecialTokens = false) {
+            List<string> tokens = new List<string>();
+            foreach (int index in ids) {
+                if (skipSpecialTokens && AllSpecialIds.Contains(index)) {
+                    continue;
+                }
+                if (AddedTokensDecoder.ContainsKey(index)) {
+                    tokens.Add(AddedTokensDecoder[index].Content);
+                } else {
+                    tokens.Add(ConvertIdToToken(index));
+                }
+            }
+            return tokens;
+        }
+
+        protected string ConvertIdsToTokens(int id, bool skip_special_tokens = false) {
+            if (AddedTokensDecoder.ContainsKey(id)) {
+                return AddedTokensDecoder[id].Content;
+            } else {
+                return ConvertIdToToken(id);
+            }
+        }
+
+        /// <summary>
+        /// Converts an index (integer) in a token (string) using the vocab.
+        /// </summary>
+        protected abstract string ConvertIdToToken(int index);
+
+        protected override string ConvertTokensToString(List<string> tokens) {
+            return string.Join(" ", tokens);
+        }
+
+        public override string Decode(
+            List<int> tokenIds,
+            bool skipSpecialTokens = false,
+            bool? cleanUpTokenizationSpaces = null,
+            bool spacesBetweenSpecialTokens = true)
+        {
+            List<string> filteredTokens = ConvertIdsToTokens(tokenIds, skipSpecialTokens);
+            HashSet<string> legacyAddedTokens = new HashSet<string>(AddedTokensEncoder.Keys.Except(AllSpecialTokens));
+
+            foreach (var token in AdditionalSpecialTokens) {
+                if (ConvertTokensToIds(token) >= VocabSize) {
+                    legacyAddedTokens.Add(token);
+                }
+            }
+
+            // To avoid mixing byte-level and unicode for byte-level BPT
+            // we need to build string separately for added tokens and byte-level tokens
+            // cf. https://github.com/huggingface/transformers/issues/1133
+            List<string> subTexts = new List<string>();
+            List<string> currentSubText = new List<string>();
+
+            foreach (var token in filteredTokens) {
+                if (skipSpecialTokens && AllSpecialTokens.Contains(token)) {
+                    continue;
+                }
+
+                if (legacyAddedTokens.Contains(token)) {
+                    if (currentSubText.Count > 0) {
+                        string str = ConvertTokensToString(currentSubText);
+                        if (str.Length > 0) {
+                            subTexts.Add(str);
+                        }
+                        currentSubText.Clear();
+                    }
+                    subTexts.Add(token.ToString());
+                } else {
+                    currentSubText.Add(token);
+                }
+            }
+            if (currentSubText != null && currentSubText.Count > 0) {
+                subTexts.Add(ConvertTokensToString(currentSubText));
+            }
+
+            string text;
+            if (spacesBetweenSpecialTokens) {
+                text = string.Join(" ", subTexts);
+            } else {
+                text = string.Join("", subTexts);
+            }
+
+            cleanUpTokenizationSpaces ??= CleanUpTokenizationSpaces;
+
+            if (cleanUpTokenizationSpaces.Value) {
+                string cleanText = CleanUpTokenization(text);
+                return cleanText;
+            } else {
+                return text;
+            }
         }
     }
 }

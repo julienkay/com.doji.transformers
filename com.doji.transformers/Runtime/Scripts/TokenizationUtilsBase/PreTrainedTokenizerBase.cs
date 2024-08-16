@@ -70,37 +70,36 @@ namespace Doji.AI.Transformers {
     /// </summary>
     public abstract partial class PreTrainedTokenizerBase {
 
-        public int? ModelMaxLength { get; set; }
-        public Side PaddingSide { get; set; }
-        public Side TruncationSide { get; set; }
+        public const string TOKENIZER_CONFIG_FILE = "tokenizer_config.json";
 
-        public List<string> ModelInputNames { get; private set; } = new List<string>() { "input_ids", "token_type_ids", "attention_mask" };
-        public bool CleanUpTokenizationSpaces { get; set; }
-        public bool SplitSpecialTokens { get; set; }
-        public HashSet<string> DeprecationWarnings { get; set; }
-        public bool InTargetContextManager { get; set; }
+        protected TokenizerConfig Config { get; set; }
+
+        public int ModelMaxLength => Config.ModelMaxLength.Value;
+        public Side PaddingSide => Config.PaddingSide.Value;
+        public Side TruncationSide => Config.TruncationSide.Value;
+        public List<string> ModelInputNames => Config.ModelInputNames;
+        public bool CleanUpTokenizationSpaces => Config.CleanUpTokenizationSpaces.Value;
+        public bool SplitSpecialTokens => Config.SplitSpecialTokens.Value;
+        public HashSet<string> DeprecationWarnings { get; private set; }
+        public bool InTargetContextManager { get; private set; }
 
         public abstract bool Fast { get; }
 
-        protected virtual void Initialize(
-            TokenizerConfig config,
-            Side paddingSide = Side.Right,
-            Side truncationSide = Side.Right,
-            List<string> modelInputNames = null,
-            bool cleanUpTokenizationSpaces = true,
-            bool splitSpecialTokens = false,
-            Dictionary<int, AddedToken> addedTokensDecoder = null)
-        {
-            ModelMaxLength = config.ModelMaxLength;
-            PaddingSide = paddingSide;
-            TruncationSide = truncationSide;
-            ModelInputNames = modelInputNames ?? ModelInputNames;
-            CleanUpTokenizationSpaces = cleanUpTokenizationSpaces;
-            SplitSpecialTokens = splitSpecialTokens;
+        public PreTrainedTokenizerBase(TokenizerConfig config) {
+            Config = config ?? new TokenizerConfig();
+            // set default if not initialized in config
+            Config.ModelMaxLength ??= int.MaxValue;
+            Config.PaddingSide ??= Side.Right;
+            Config.TruncationSide ??= Side.Right;
+            Config.ModelInputNames ??= new List<string>() { "input_ids", "token_type_ids", "attention_mask" };
+            Config.CleanUpTokenizationSpaces ??= true;
+            Config.SplitSpecialTokens ??= false;
+        }
+
+        protected virtual void Initialize() {
             DeprecationWarnings = new HashSet<string> { };
             InTargetContextManager = false;
-
-            InitializeSpecialTokensMixin(config);
+            InitializeSpecialTokensMixin();
         }
 
         /// <summary>
@@ -133,6 +132,7 @@ namespace Doji.AI.Transformers {
             Truncation truncation = Truncation.None,
             int? maxLength = null,
             int stride = 0,
+            bool isSplitIntoWords = false,
             int? padToMultipleOf = null,
             bool? returnTokenTypeIds = null,
             bool? returnAttentionMask = null,
@@ -142,7 +142,7 @@ namespace Doji.AI.Transformers {
             bool returnLength = false)
         {
             return Encode<Input>(text, textPair, textTarget, textPairTarget, addSpecialTokens,
-                padding, truncation, maxLength, stride, padToMultipleOf, returnTokenTypeIds,
+                padding, truncation, maxLength, stride, isSplitIntoWords, padToMultipleOf, returnTokenTypeIds,
                 returnAttentionMask, returnOverflowingTokens, returnSpecialTokensMask,
                 returnOffsetsMapping, returnLength);
         }
@@ -163,6 +163,7 @@ namespace Doji.AI.Transformers {
             Truncation truncation= Truncation.None,
             int? maxLength = null,
             int stride = 0,
+            bool isSplitIntoWords = false,
             int? padToMultipleOf = null,
             bool? returnTokenTypeIds = null,
             bool? returnAttentionMask = null,
@@ -173,7 +174,7 @@ namespace Doji.AI.Transformers {
         {
             EncodingParams args = new EncodingParams(
                 text, textPair, textTarget, textPairTarget, addSpecialTokens, padding,
-                truncation, maxLength, stride, padToMultipleOf, returnTokenTypeIds,
+                truncation, maxLength, stride, isSplitIntoWords, padToMultipleOf, returnTokenTypeIds,
                 returnAttentionMask, returnOverflowingTokens, returnSpecialTokensMask,
                 returnOffsetsMapping, returnLength
             );
@@ -267,8 +268,13 @@ namespace Doji.AI.Transformers {
         /// <summary>
         /// Converts a string into a sequence of tokens, replacing unknown tokens with the `unk_token`.
         /// </summary>
-        public virtual List<string> Tokenize(string text) {
+        protected virtual List<string> Tokenize(string text, EncodingParams args) {
             throw new NotImplementedException($"This tokenizer does not implement {nameof(Tokenize)}");
+        }
+
+        //TODO: provide similar overloads like for the Encode() method, keeping the Params struct internal
+        public List<string> Tokenize(string text) {
+            return Tokenize(text, new EncodingParams(null));
         }
 
         /// <summary>
@@ -286,8 +292,7 @@ namespace Doji.AI.Transformers {
             Padding padding = Padding.None,
             int? maxLength = null,
             int? padToMultipleOf = null,
-            bool? returnAttentionMask = null,
-            string returnTensors = null)
+            bool? returnAttentionMask = null)
         {
             if (Fast) {
                 string warningKey = "Asking-to-pad-a-fast-tokenizer";
@@ -312,12 +317,14 @@ namespace Doji.AI.Transformers {
                 if (returnAttentionMask == true) {
                     encodedInputs["attention_mask"] = new List<int>();
                 }
+                return;
             }
 
             // handle single inputs
             if (encodedInputs is InputEncoding) {
-                System.Diagnostics.Debug.Assert(requiredInput != null);
-                System.Diagnostics.Debug.Assert(requiredInput[0] is not ICollection);
+                Debug.Assert(requiredInput != null);
+                Debug.Assert(requiredInput.Count > 0);
+                Debug.Assert(requiredInput[0] is not ICollection);
 
                 _Pad(encodedInputs,
                     maxLength,
@@ -328,7 +335,7 @@ namespace Doji.AI.Transformers {
                 return;
             }
 
-            System.Diagnostics.Debug.Assert(encodedInputs is BatchEncoding);
+            Debug.Assert(encodedInputs is BatchEncoding);
 
             // handle batch inputs
             int batchSize = requiredInput.Count;
@@ -533,7 +540,7 @@ namespace Doji.AI.Transformers {
             }
 
             if (args.ReturnOverflowingTokens) {
-                System.Diagnostics.Debug.Assert(args.MaxLength.HasValue);
+                Debug.Assert(args.MaxLength.HasValue);
                 encodedInputs["overflowing_tokens"] = overflowingTokens;
                 encodedInputs.NumTruncatedTokens = totalLen - args.MaxLength.Value;
             }
@@ -559,7 +566,7 @@ namespace Doji.AI.Transformers {
             } 
             if (args.ReturnSpecialTokensMask) {
                 if (args.AddSpecialTokens) {
-                    encodedInputs["special_tokens_mask"] = GetSpecialTokensMask(ids, pairIds); ;
+                    encodedInputs["special_tokens_mask"] = GetSpecialTokensMask(ids, pairIds);
                 } else {
                     encodedInputs["special_tokens_mask"] = Enumerable.Repeat(0, sequence.Count).ToList();
                 }
@@ -721,6 +728,49 @@ namespace Doji.AI.Transformers {
         /// </summary>
         protected virtual Dictionary<string, int> GetVocab() {
             throw new NotImplementedException($"This tokenizer does not implement {nameof(GetVocab)}");
+        }
+
+        /// <summary>
+        /// Converts a sequence of tokens (string) in a single string.
+        /// </summary>
+        protected abstract string ConvertTokensToString(List<string> tokens);
+
+        public virtual List<string> BatchDecode() {
+            throw new NotImplementedException();
+        }
+
+        /// <summary>
+        /// Converts a sequence of ids in a string, using the tokenizer and vocabulary
+        /// with options to remove special tokens and clean up tokenization spaces.
+        /// Similar to doing <see cref="ConvertTokensToString(List{string})"/>.
+        /// </summary>
+        /// <param name="tokenIds">  List of tokenized input ids. Can be obtained using the <see cref="Encode"/> method.</param>
+        /// <param name="skipSpecialTokens">Whether or not to remove special tokens in the decoding.</param>
+        /// <param name="cleanUpTokenizationSpaces"> Whether or not to clean up the tokenization spaces. If `None`, will default to <see cref="CleanUpTokenizationSpaces"/>.</param>
+        /// <returns>The decoded sentence.</returns>
+        public abstract string Decode(
+            List<int> tokenIds,
+            bool skipSpecialTokens = false,
+            bool? cleanUpTokenizationSpaces = null,
+            bool spacesBetweenSpecialTokens = true);
+
+        /// <summary>
+        /// Clean up a list of simple English tokenization artifacts like spaces before punctuations and abbreviated forms.
+        /// </summary>
+        /// <param name="outString">The text to clean up.</param>
+        /// <returns>The cleaned-up string.</returns>
+        protected static string CleanUpTokenization(string outString) {
+            return outString
+                .Replace(" .", ".")
+                .Replace(" ?", "?")
+                .Replace(" !", "!")
+                .Replace(" ,", ",")
+                .Replace(" ' ", "'")
+                .Replace(" n't", "n't")
+                .Replace(" 'm", "'m")
+                .Replace(" 's", "'s")
+                .Replace(" 've", "'ve")
+                .Replace(" 're", "'re");
         }
     }
 }
