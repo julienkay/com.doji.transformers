@@ -6,7 +6,8 @@
   "dependencies": {
     "com.unity.sentis": "1.6.0-pre.1",
     "com.unity.nuget.newtonsoft-json": "3.2.1",
-    "com.doji.sentencepiece": "0.0.0"
+    "com.doji.sentencepiece": "0.0.0",
+    "com.doji.sentis-utils": "0.0.0"
   },
   "author": {
     "name": "Doji Technologies",
