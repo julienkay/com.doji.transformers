@@ -1200,7 +1200,8 @@ namespace Doji.AI.Transformers {
 
         private Tensor PrepareAttentionMaskForGeneration(TensorInt inputs, TensorInt padTokenTensor, int? padTokenId, int[] eosTokenId) {
             // No information for attention mask inference -> return default attention mask
-            var defaultAttentionMask = _ops.Ones<TensorInt>(inputs.shape);
+            var shape = new TensorShape(inputs.shape[0], inputs.shape[1]);
+            var defaultAttentionMask = _ops.Ones<TensorInt>(shape);
             if (padTokenId == null) {
                 return defaultAttentionMask;
             }
