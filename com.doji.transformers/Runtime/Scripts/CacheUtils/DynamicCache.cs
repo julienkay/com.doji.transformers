@@ -19,7 +19,7 @@ namespace Doji.AI.Transformers {
         public override (Tensor Key, Tensor Value) this[int index] {
             get {
                 if (index < 0 || index >= Math.Min(KeyCache.Count, ValueCache.Count)) {
-                    throw new IndexOutOfRangeException("Index is out of range.");
+                    throw new IndexOutOfRangeException($"Index ({index} is outside the bounds of the cached values (0-{KeyCache.Count - 1}).");
                 }
                 return (KeyCache[index], ValueCache[index]);
             }

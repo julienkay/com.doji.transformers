@@ -35,13 +35,15 @@ namespace Doji.AI.Transformers {
             TensorInt positionIds = kwargs.Get<TensorInt>("position_ids");
 
             // If we have cache: let's slice `inputIds` through `cachePosition`, to keep only the unprocessed tokens
-            // Exception 1: when passing input_embeds, inputIds may be missing entries
-            // Exception 2: some generation methods do special slicing of inputIds, so we don't need to do it here
             if (pastKeyValues != null) {
                 if (inputsEmbeds != null) {
+                    // Exception 1: when passing input_embeds, inputIds may be missing entries
                     inputIds = _ops.Slice(inputIds, .., ^cachePosition.shape[0]..);
                 } else if (inputIds.shape[1] != cachePosition.shape[0]) {
-                    inputIds = _ops.GatherElements(inputIds, cachePosition, 1);
+                    var indices = _ops.Expand(cachePosition, new TensorShape(inputIds.shape[0], cachePosition.shape[0]));
+                    inputIds = _ops.GatherElements(inputIds, indices, 0);
+                } else {
+                    ;// Exception 2: some generation methods do special slicing of inputIds, so we don't need to do it here
                 }
             }
 
@@ -90,7 +92,7 @@ namespace Doji.AI.Transformers {
             for (int i = 0; i < 32; i++) {
                 string key = $"past_key_values.{i}.key";
                 string value = $"past_key_values.{i}.value";
-                if (cache.GetSeqLength() == 0) {
+                if (cache.GetSeqLength(i) == 0) {
                     // create empty tensors for initial loop
                     modelInputs[key] = _ops.AllocNoData<TensorFloat>(new TensorShape(inputIds.shape[0], 32, 0, 96));
                     modelInputs[value] = _ops.AllocNoData<TensorFloat>(new TensorShape(inputIds.shape[0], 32, 0, 96));

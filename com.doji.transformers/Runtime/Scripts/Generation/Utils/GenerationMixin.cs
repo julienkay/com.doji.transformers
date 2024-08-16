@@ -699,9 +699,10 @@ namespace Doji.AI.Transformers {
         {
             if (inputIds != null && expandSize > 1) {
                 //TODO: RepeatInterleave needs to properly support arbitrary shapes
-                inputIds.Reshape(new TensorShape(inputIds.shape[1]));
+                int d1 = inputIds.shape[1];
+                inputIds.Reshape(new TensorShape(d1));
                 inputIds = _ops.RepeatInterleave(inputIds, expandSize, dim: 0);
-                inputIds.Reshape(new TensorShape(expandSize, inputIds.shape[1]));
+                inputIds.Reshape(new TensorShape(expandSize, d1));
             }
 
             ExpandDictForGeneration(modelKwargs, expandSize);
