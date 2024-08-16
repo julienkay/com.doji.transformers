@@ -87,7 +87,14 @@ namespace Doji.AI.Transformers {
                 );*/
             }
 
+            modelInputs["position_ids"] = positionIds;
+            modelInputs["cache_position"] = cachePosition;
+            modelInputs["attention_mask"] = attentionMask;
+
             // prepare past_key_values
+            if (!kwargs.Get("use_cache", true)) {
+                return modelInputs;
+            }
             Cache cache = kwargs["past_key_values"] as Cache;
             for (int i = 0; i < 32; i++) {
                 string key = $"past_key_values.{i}.key";
@@ -102,10 +109,6 @@ namespace Doji.AI.Transformers {
                     modelInputs[value] = cache[i].Value;
                 }
             }
-
-            modelInputs["position_ids"] = positionIds;
-            modelInputs["cache_position"] = cachePosition;
-            modelInputs["attention_mask"] = attentionMask;
             return modelInputs;
         }
     }
