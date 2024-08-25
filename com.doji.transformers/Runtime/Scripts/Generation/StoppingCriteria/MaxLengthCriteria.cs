@@ -24,7 +24,7 @@ namespace Doji.AI.Transformers {
             MaxPositionEmbeddings = maxPositionEmbeddings;
         }
 
-        public override TensorInt Apply(TensorInt inputIds, TensorFloat scores) {
+        public override Tensor<int> Apply(Tensor<int> inputIds, Tensor<float> scores) {
             int curLen = inputIds.shape[-1];
             bool isDone = curLen >= MaxLength;
             if (MaxPositionEmbeddings != null && !isDone && curLen >= MaxPositionEmbeddings) {

@@ -10,8 +10,8 @@ namespace Doji.AI.Transformers {
             _ops = ops;
         }
 
-        public TensorInt Apply(TensorInt inputIds, TensorFloat scores) {
-            TensorInt isDone = _ops.Zeros<TensorInt>(new TensorShape(inputIds.shape[0]));
+        public Tensor<int> Apply(Tensor<int> inputIds, Tensor<float> scores) {
+            Tensor<int> isDone = _ops.Zeros<int>(new TensorShape(inputIds.shape[0]));
             foreach (var criteria in this) {
                 isDone = _ops.Or(isDone, criteria.Apply(inputIds, scores));
             }

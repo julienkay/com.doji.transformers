@@ -9,6 +9,6 @@ namespace Doji.AI.Transformers {
     /// </summary>
     public abstract class StoppingCriteria {
         internal Ops Ops { get; set; }
-        public abstract TensorInt Apply(TensorInt inputIds, TensorFloat scores);
+        public abstract Tensor<int> Apply(Tensor<int> inputIds, Tensor<float> scores);
     }
 }

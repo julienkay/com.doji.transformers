@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using Unity.Sentis;
+using static Doji.AI.SentisUtils;
 
 namespace Doji.AI.Transformers {
 
@@ -21,7 +22,7 @@ namespace Doji.AI.Transformers {
 
         private Cache _cache;
 
-        protected virtual Dictionary<string, Tensor> PrepareInputsForGeneration(TensorInt inputIds, Kwargs kwargs) {
+        protected virtual Dictionary<string, Tensor> PrepareInputsForGeneration(Tensor<int> inputIds, Kwargs kwargs) {
             throw new NotImplementedException($"A model class needs to define a {nameof(PrepareInputsForGeneration)} method in order to use `.Generate()`.");
         }
 
@@ -29,7 +30,7 @@ namespace Doji.AI.Transformers {
         /// Generates sequences of token ids for models with a language modeling head.
         /// </summary>
         public ModelOutput Generate(
-            TensorInt inputs,
+            Tensor<int> inputs,
             GenerationConfig generationConfig = null,
             PreTrainedModel assistantModel = null,
             object streamer = null,
@@ -51,7 +52,7 @@ namespace Doji.AI.Transformers {
 
             // define model inputs
             PrepareModelInputs(ref inputs, out string modelInputName, generationConfig.BosTokenId.Value, ref modelKwargs);
-            TensorInt inputsTensor = inputs;
+            Tensor<int> inputsTensor = inputs;
             int batchSize = inputsTensor.shape[0];
 
             PrepareSpecialTokens(generationConfig, kwargsHasAttentionMask);
@@ -93,20 +94,20 @@ namespace Doji.AI.Transformers {
             }
 
             // Prepare `input_ids` which will be used for auto-regressive generation
-            TensorInt inputIds;
+            Tensor<int> inputIds;
             if (Config.IsEncoderDecoder) {
                 inputIds = PrepareDecoderInputIdsForGeneration(
                     batchSize,
                     modelInputName,
                     modelKwargs,
                     generationConfig.DecoderStartTokenTensor
-                ) as TensorInt;
+                ) as Tensor<int>;
             } else {
-                inputIds = modelInputName == "input_ids" ? inputsTensor : modelKwargs.Pop("input_ids") as TensorInt;
+                inputIds = modelInputName == "input_ids" ? inputsTensor : modelKwargs.Pop("input_ids") as Tensor<int>;
             }
 
             if (generationConfig.TokenHealing == true) {
-                inputIds = HealTokens(inputIds, tokenizer) as TensorInt;
+                inputIds = HealTokens(inputIds, tokenizer) as Tensor<int>;
             }
 
             if (streamer != null) {
@@ -460,7 +461,7 @@ namespace Doji.AI.Transformers {
             return result;
         }
 
-        private object GetCandidateGenerator(GenerationConfig generationConfig, TensorInt inputIds, TensorInt inputsTensor, object assistantModel, object logitsProcessor, Kwargs modelKwargs) {
+        private object GetCandidateGenerator(GenerationConfig generationConfig, Tensor<int> inputIds, Tensor<int> inputsTensor, object assistantModel, object logitsProcessor, Kwargs modelKwargs) {
             throw new NotImplementedException();
         }
 
@@ -512,15 +513,15 @@ namespace Doji.AI.Transformers {
             return warpers;
         }
 
-        private ModelOutput AssistedDecoding(TensorInt inputIds, object candidateGenerator, object logitsProcessor, object logitsWarper, object stoppingCriteria, GenerationConfig generationConfig, object streamer, Kwargs modelKwargs) {
+        private ModelOutput AssistedDecoding(Tensor<int> inputIds, object candidateGenerator, object logitsProcessor, object logitsWarper, object stoppingCriteria, GenerationConfig generationConfig, object streamer, Kwargs modelKwargs) {
             throw new NotImplementedException();
         }
 
-        private ModelOutput DolaDecoding(TensorInt inputIds, object dola_layers, object logitsProcessor, object logitsWarper, object stoppingCriteria, GenerationConfig generationConfig, object streamer, Kwargs modelKwargs) {
+        private ModelOutput DolaDecoding(Tensor<int> inputIds, object dola_layers, object logitsProcessor, object logitsWarper, object stoppingCriteria, GenerationConfig generationConfig, object streamer, Kwargs modelKwargs) {
             throw new NotImplementedException();
         }
 
-        private ModelOutput ContrastiveSearch(TensorInt inputIds, object logitsProcessor, object stoppingCriteria, GenerationConfig generationConfig, object streamer, Kwargs modelKwargs) {
+        private ModelOutput ContrastiveSearch(Tensor<int> inputIds, object logitsProcessor, object stoppingCriteria, GenerationConfig generationConfig, object streamer, Kwargs modelKwargs) {
             throw new NotImplementedException();
         }
 
@@ -529,7 +530,7 @@ namespace Doji.AI.Transformers {
         /// can be used for text-decoder, text-to-text, speech-to-text, and vision-to-text models.
         /// </summary>
         private GenerateDecoderOnlyOutput Sample(
-            TensorInt inputIds,
+            Tensor<int> inputIds,
             LogitsProcessorList logitsProcessor,
             LogitsProcessorList logitsWarper,
             StoppingCriteriaList stoppingCriteria,
@@ -538,7 +539,7 @@ namespace Doji.AI.Transformers {
             Kwargs modelKwargs)
         {
             // Initialize values
-            TensorInt padTokenId = generationConfig.PadTokenTensor;
+            Tensor<int> padTokenId = generationConfig.PadTokenTensor;
             bool outputAttentions = generationConfig.OutputAttentions.Value;
             bool outputHiddenStates = generationConfig.OutputHiddenStates.Value;
             bool outputScores = generationConfig.OutputScores.Value;
@@ -553,8 +554,8 @@ namespace Doji.AI.Transformers {
             }
 
             // initialize attention / hidden states / scores tuples
-            List<TensorFloat> scores = returnDictInGenerate && outputScores ? new List<TensorFloat>() : null;
-            List<TensorFloat> rawLogits = returnDictInGenerate && outputLogits ? new List<TensorFloat>() : null;
+            List<Tensor<float>> scores = returnDictInGenerate && outputScores ? new List<Tensor<float>>() : null;
+            List<Tensor<float>> rawLogits = returnDictInGenerate && outputLogits ? new List<Tensor<float>>() : null;
             List<Tensor> decoderAttentions = returnDictInGenerate && outputAttentions ? new List<Tensor>() : null;
             List<Tensor> crossAttentions = returnDictInGenerate && outputAttentions ? new List<Tensor>() : null;
             List<Tensor> decoderHiddenStates = returnDictInGenerate && outputHiddenStates ? new List<Tensor>() : null;
@@ -571,7 +572,7 @@ namespace Doji.AI.Transformers {
             int batchSize = inputIds.shape[0];
             int curLen = inputIds.shape[1];
             bool finished = false;
-            TensorInt unfinishedSequences = _ops.Ones<TensorInt>(new TensorShape(batchSize));
+            Tensor<int> unfinishedSequences = _ops.Ones<int>(new TensorShape(batchSize));
             GetInitialCachePosition(inputIds, modelKwargs);
 
             while (!finished) {
@@ -593,8 +594,8 @@ namespace Doji.AI.Transformers {
                 if (finished)
                     continue; // Don't waste resources running unnecessary code
 
-                var shape = (outputs["logits"] as TensorFloat).shape;
-                TensorFloat nextTokenLogits = _ops.Slice(outputs["logits"] as TensorFloat, .., ^1, ..);
+                var shape = (outputs["logits"] as Tensor<float>).shape;
+                Tensor<float> nextTokenLogits = _ops.Slice(outputs["logits"] as Tensor<float>, .., ^1, ..);
 
                 // pre-process distribution
                 var nextTokenScores = logitsProcessor.Apply(inputIds, nextTokenLogits);
@@ -620,7 +621,7 @@ namespace Doji.AI.Transformers {
                 }
 
                 // token selection
-                TensorInt nextTokens;
+                Tensor<int> nextTokens;
                 if (doSample) {
                     throw new NotImplementedException("torch.multinomial");
                     //var probs = _ops.Softmax(nextTokenScores, axis: -1);
@@ -644,7 +645,7 @@ namespace Doji.AI.Transformers {
                 UpdateModelKwargsForGeneration(outputs, modelKwargs, Config.IsEncoderDecoder);
 
                 unfinishedSequences = _ops.And(unfinishedSequences, _ops.Not(stoppingCriteria.Apply(inputIds, /*scores*/ null)));
-                var max = _ops.ReduceMax(unfinishedSequences, null).ReadbackAndClone();
+                var max = _ops.ReduceMax(unfinishedSequences, 0).ReadbackAndClone();
                 finished = max[0] == 0;
                 curLen += 1;
             }
@@ -676,15 +677,15 @@ namespace Doji.AI.Transformers {
             }
         }
 
-        private ModelOutput BeamSearch(TensorInt inputIds, object beam_scorer, object logitsProcessor, object logitsWarper, object stoppingCriteria, GenerationConfig generationConfig, Kwargs modelKwargs) {
+        private ModelOutput BeamSearch(Tensor<int> inputIds, object beam_scorer, object logitsProcessor, object logitsWarper, object stoppingCriteria, GenerationConfig generationConfig, Kwargs modelKwargs) {
             throw new NotImplementedException();
         }
 
-        private ModelOutput GroupBeamSearch(TensorInt inputIds, object beam_scorer, object logitsProcessor, object stoppingCriteria, GenerationConfig generationConfig, Kwargs modelKwargs) {
+        private ModelOutput GroupBeamSearch(Tensor<int> inputIds, object beam_scorer, object logitsProcessor, object stoppingCriteria, GenerationConfig generationConfig, Kwargs modelKwargs) {
             throw new NotImplementedException();
         }
 
-        private ModelOutput ConstrainedBeamSearch(TensorInt inputIds, object constrained_beam_scorer, object logitsProcessor, object stoppingCriteria, GenerationConfig generationConfig, Kwargs modelKwargs) {
+        private ModelOutput ConstrainedBeamSearch(Tensor<int> inputIds, object constrained_beam_scorer, object logitsProcessor, object stoppingCriteria, GenerationConfig generationConfig, Kwargs modelKwargs) {
             throw new NotImplementedException();
         }
 
@@ -692,7 +693,7 @@ namespace Doji.AI.Transformers {
         /// Expands tensors from [batch_size, ...] to [batch_size * expand_size, ...]
         /// </summary>
         private void ExpandInputsForGeneration(
-            ref TensorInt inputIds,
+            ref Tensor<int> inputIds,
             int expandSize = 1,
             bool isEncoderDecoder = false,
             Kwargs modelKwargs = null)
@@ -723,7 +724,7 @@ namespace Doji.AI.Transformers {
                     && dictToExpand[key] is Tensor)
                 {
                     //TODO: RepeatInterleave needs to properly support arbitrary shapes
-                    TensorInt tensor = dictToExpand[key] as TensorInt;
+                    Tensor<int> tensor = dictToExpand[key] as Tensor<int>;
                     int d1 = tensor.shape[1];
                     tensor.Reshape(new TensorShape(d1));
                     tensor = _ops.RepeatInterleave(tensor, expandSize, dim: 0);
@@ -771,9 +772,9 @@ namespace Doji.AI.Transformers {
             if (!isEncoderDecoder) {
                 // update attention mask
                 if (modelKwargs.ContainsKey("attention_mask")) {
-                    var attentionMask = modelKwargs["attention_mask"] as TensorInt;
+                    var attentionMask = modelKwargs["attention_mask"] as Tensor<int>;
                     modelKwargs["attention_mask"] = _ops.Concatenate(
-                        attentionMask, _ops.Ones<TensorInt>(new TensorShape(attentionMask.shape[0], 1)), axis: -1
+                        attentionMask, _ops.Ones<int>(new TensorShape(attentionMask.shape[0], 1)), axis: -1
                     );
                 }
             } else {
@@ -781,22 +782,22 @@ namespace Doji.AI.Transformers {
                 if (modelKwargs.ContainsKey("decoder_attention_mask")) {
                     var decoderAttentionMask = modelKwargs["decoder_attention_mask"] as Tensor;
                     modelKwargs["decoder_attention_mask"] = _ops.Concatenate(
-                        decoderAttentionMask, _ops.Ones<TensorInt>(new TensorShape(decoderAttentionMask.shape[0], 1)), axis: -1
+                        decoderAttentionMask, _ops.Ones<int>(new TensorShape(decoderAttentionMask.shape[0], 1)), axis: -1
                     );
                 }
             }
 
             if (modelKwargs.Get("use_cache", true)) {
-                TensorInt cachePosition = modelKwargs["cache_position"] as TensorInt;
+                Tensor<int> cachePosition = modelKwargs["cache_position"] as Tensor<int>;
                 cachePosition = _ops.Slice(cachePosition, ^1..);
                 cachePosition = _ops.Add(cachePosition, numNewTokens);
                 modelKwargs["cache_position"] = cachePosition;
             } else {
                 //TODO: Possible to do this without readback?
-                TensorInt pastPositions = modelKwargs.Pop("cache_position") as TensorInt;
+                Tensor<int> pastPositions = modelKwargs.Pop("cache_position") as Tensor<int>;
                 pastPositions = pastPositions.ReadbackAndClone();
                 _ops.WaveOwnership(pastPositions);
-                TensorInt newPositions = _ops.NewTensorInt(new TensorShape(numNewTokens), ArrayUtils.Arange(pastPositions[-1] + 1, pastPositions[-1] + numNewTokens + 1));
+                Tensor<int> newPositions = _ops.NewTensor<int>(new TensorShape(numNewTokens), ArrayUtils.Arange(pastPositions[-1] + 1, pastPositions[-1] + numNewTokens + 1));
                 modelKwargs["cache_position"] = _ops.Cat(pastPositions, newPositions);
             }
         }
@@ -1030,7 +1031,7 @@ namespace Doji.AI.Transformers {
         /// <summary>
         /// This function extracts the model-specific `inputs` for generation.
         /// </summary>
-        private void PrepareModelInputs(ref TensorInt inputs, out string inputName, int bosTokenId, ref Kwargs modelKwargs) {
+        private void PrepareModelInputs(ref Tensor<int> inputs, out string inputName, int bosTokenId, ref Kwargs modelKwargs) {
             // retrieve all kwargs that are non-None or non-model input related.
             // some encoder-decoder models have different names for model and encoder
             if (Config.IsEncoderDecoder && HasEncoder /* && Encoder.MainInputName != MainInputName*/) {
@@ -1047,7 +1048,7 @@ namespace Doji.AI.Transformers {
                 throw new ArgumentException($"`inputs`: {inputs}` were passed alongside {inputName} which is not allowed. " +
                 $"Make sure to either pass {inputs} or {inputName}=...");
             } else if (inputsKwarg != null) {
-                inputs = inputsKwarg as TensorInt;
+                inputs = inputsKwarg as Tensor<int>;
             }
 
             // In the presence of `inputs_embeds` for text models:
@@ -1077,7 +1078,7 @@ namespace Doji.AI.Transformers {
                     }
                 }
 
-                inputs = modelKwargs["inputs_embeds"] as TensorInt;
+                inputs = modelKwargs["inputs_embeds"] as Tensor<int>;
                 inputName = "inputs_embeds";
             }
 
@@ -1095,7 +1096,7 @@ namespace Doji.AI.Transformers {
         /// <summary>
         /// Initializes input ids for generation, if necessary.
         /// </summary>
-        private void MaybeInitializeInputIdsForGeneration(ref TensorInt inputs, int? bosTokenId, Kwargs modelKwargs) {
+        private void MaybeInitializeInputIdsForGeneration(ref Tensor<int> inputs, int? bosTokenId, Kwargs modelKwargs) {
             if (inputs != null) {
                 return;
             }
@@ -1119,15 +1120,15 @@ namespace Doji.AI.Transformers {
             }
 
             if (modelKwargs.ContainsKey("inputs_embeds")) {
-                inputs = _ops.Ones<TensorInt>(new TensorShape(batch_size, 0));
+                inputs = _ops.Ones<int>(new TensorShape(batch_size, 0));
             }
 
             if (bosTokenId == null) {
                 throw new ArgumentException("`bos_token_id` has to be defined when no `input_ids` are provided.");
             }
 
-            TensorInt bos = _ops.NewTensorInt(bosTokenId.Value);
-            TensorInt ones = _ops.Ones<TensorInt>(new TensorShape(batch_size, 1));
+            Tensor<int> bos = _ops.NewTensor<int>(bosTokenId.Value);
+            Tensor<int> ones = _ops.Ones<int>(new TensorShape(batch_size, 1));
             inputs = _ops.Mul(ones, bos);
         }
 
@@ -1140,10 +1141,10 @@ namespace Doji.AI.Transformers {
         /// Note that <paramref name="generationConfig"/> is modified in this method.
         /// </summary>
         private void PrepareSpecialTokens(GenerationConfig generationConfig, bool? kwargsHasAttentionMask = null) {
-            TensorInt bos_token_tensor = TensorOrNone(generationConfig.BosTokenId);
-            TensorInt eos_token_tensor = TensorOrNone(generationConfig.EosTokenId);
-            TensorInt pad_token_tensor = TensorOrNone(generationConfig.PadTokenId);
-            TensorInt decoder_start_token_tensor = TensorOrNone(generationConfig.DecoderStartTokenId);
+            Tensor<int> bos_token_tensor = TensorOrNone(generationConfig.BosTokenId);
+            Tensor<int> eos_token_tensor = TensorOrNone(generationConfig.EosTokenId);
+            Tensor<int> pad_token_tensor = TensorOrNone(generationConfig.PadTokenId);
+            Tensor<int> decoder_start_token_tensor = TensorOrNone(generationConfig.DecoderStartTokenId);
 
             if (Config.IsEncoderDecoder) {
                 decoder_start_token_tensor = decoder_start_token_tensor ?? bos_token_tensor;
@@ -1182,26 +1183,26 @@ namespace Doji.AI.Transformers {
             generationConfig.DecoderStartTokenTensor = decoder_start_token_tensor;
         }
 
-        private TensorInt TensorOrNone(int? token) {
+        private Tensor<int> TensorOrNone(int? token) {
             if (token == null) {
                 return null;
             }
 
-            return _ops.NewTensorInt(token.Value);
+            return _ops.NewTensor<int>(token.Value);
         }
 
-        private TensorInt TensorOrNone(int[] token) {
+        private Tensor<int> TensorOrNone(int[] token) {
             if (token == null) {
                 return null;
             }
 
-            return _ops.NewTensorInt(new TensorShape(token.Length), token);
+            return _ops.NewTensor<int>(new TensorShape(token.Length), token);
         }
 
-        private Tensor PrepareAttentionMaskForGeneration(TensorInt inputs, TensorInt padTokenTensor, int? padTokenId, int[] eosTokenId) {
+        private Tensor PrepareAttentionMaskForGeneration(Tensor<int> inputs, Tensor<int> padTokenTensor, int? padTokenId, int[] eosTokenId) {
             // No information for attention mask inference -> return default attention mask
             var shape = new TensorShape(inputs.shape[0], inputs.shape[1]);
-            var defaultAttentionMask = _ops.Ones<TensorInt>(shape);
+            var defaultAttentionMask = _ops.Ones<int>(shape);
             if (padTokenId == null) {
                 return defaultAttentionMask;
             }
@@ -1213,13 +1214,13 @@ namespace Doji.AI.Transformers {
 
             // Otherwise we may have information -> try to infer the attention mask
             //TODO: How to do this without readback (i.e. implement torch.isin?)
-            int[] inputsArray = inputs.ToReadOnlyArray();
+            int[] inputsArray = inputs.DownloadToArray();
             bool isPadTokenInInputs = padTokenId != null && inputsArray.Contains(padTokenId.Value);
             bool isPadTokenNotEqualToEosTokenId = eosTokenId == null || !eosTokenId.Contains(padTokenId.Value);
             bool canInferAttentionMask = isPadTokenInInputs && isPadTokenNotEqualToEosTokenId;
-            TensorInt attentionMaskFromPadding = _ops.Equal(inputs, padTokenTensor);
-            TensorInt canInferTensor = _ops.NewTensorInt(canInferAttentionMask ? 1 : 0);
-            TensorInt attentionMask = _ops.Where(canInferTensor, attentionMaskFromPadding, defaultAttentionMask);
+            Tensor<int> attentionMaskFromPadding = _ops.Equal(inputs, padTokenTensor);
+            Tensor<int> canInferTensor = _ops.NewTensor<int>(canInferAttentionMask ? 1 : 0);
+            Tensor<int> attentionMask = _ops.Where(canInferTensor, attentionMaskFromPadding, defaultAttentionMask);
             return attentionMask;
         }
 
@@ -1319,14 +1320,14 @@ namespace Doji.AI.Transformers {
         /// <summary>
         /// Calculates `cache_position` for the pre-fill stage based on `input_ids` and optionally past length
         /// </summary>
-        private void GetInitialCachePosition(TensorInt inputIds, Kwargs modelKwargs) {
+        private void GetInitialCachePosition(Tensor<int> inputIds, Kwargs modelKwargs) {
             // `torch.arange` from a shape -- the lines below are equivalent to `torch.arange`
-            TensorInt inputEmbeds = modelKwargs.Get<TensorInt>("inputs_embeds");
-            TensorInt cachePosition;
+            Tensor<int> inputEmbeds = modelKwargs.Get<Tensor<int>>("inputs_embeds");
+            Tensor<int> cachePosition;
             if (inputEmbeds != null) {
-                cachePosition = _ops.Ones<TensorInt>(new TensorShape(inputEmbeds.shape[1]));
+                cachePosition = _ops.Ones<int>(new TensorShape(inputEmbeds.shape[1]));
             } else {
-                cachePosition = _ops.Ones<TensorInt>(new TensorShape(inputIds.shape[1]));
+                cachePosition = _ops.Ones<int>(new TensorShape(inputIds.shape[1]));
             }
             cachePosition = _ops.CumSum(cachePosition, 0);
             cachePosition = _ops.Sub(cachePosition, 1);

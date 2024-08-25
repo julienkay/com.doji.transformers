@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Unity.Sentis;
 
 namespace Doji.AI.Transformers {
@@ -19,20 +20,20 @@ namespace Doji.AI.Transformers {
         }
 
         public override ModelOutput Execute(Dictionary<string, Tensor> modelInputs) {
-            _worker.Execute(modelInputs);
-            var logits = _worker.PeekOutput("logits") as TensorFloat;
+            _worker.Schedule(modelInputs.Values.ToArray());
+            var logits = _worker.PeekOutput("logits") as Tensor<float>;
             return new CausalLMOutputWithPast(logits);
         }
 
         protected override Dictionary<string, Tensor> PrepareInputsForGeneration(
-            TensorInt inputIds,
+            Tensor<int> inputIds,
             Kwargs kwargs)
         {
             Cache pastKeyValues = kwargs.Get<Cache>("past_key_values");
-            TensorInt attentionMask = kwargs.Get<TensorInt>("attention_mask");
-            TensorFloat inputsEmbeds = kwargs.Get<TensorFloat>("inputs_embeds");
-            TensorInt cachePosition = kwargs.Get<TensorInt>("cache_position");
-            TensorInt positionIds = kwargs.Get<TensorInt>("position_ids");
+            Tensor<int> attentionMask = kwargs.Get<Tensor<int>>("attention_mask");
+            Tensor<float> inputsEmbeds = kwargs.Get<Tensor<float>>("inputs_embeds");
+            Tensor<int> cachePosition = kwargs.Get<Tensor<int>>("cache_position");
+            Tensor<int> positionIds = kwargs.Get<Tensor<int>>("position_ids");
 
             // If we have cache: let's slice `inputIds` through `cachePosition`, to keep only the unprocessed tokens
             if (pastKeyValues != null) {
@@ -101,8 +102,8 @@ namespace Doji.AI.Transformers {
                 string value = $"past_key_values.{i}.value";
                 if (cache.GetSeqLength(i) == 0) {
                     // create empty tensors for initial loop
-                    modelInputs[key] = _ops.AllocNoData<TensorFloat>(new TensorShape(inputIds.shape[0], 32, 0, 96));
-                    modelInputs[value] = _ops.AllocNoData<TensorFloat>(new TensorShape(inputIds.shape[0], 32, 0, 96));
+                    modelInputs[key] = _ops.AllocNoData<float>(new TensorShape(inputIds.shape[0], 32, 0, 96)) as Tensor;
+                    modelInputs[value] = _ops.AllocNoData<float>(new TensorShape(inputIds.shape[0], 32, 0, 96));
                     cache.Update(modelInputs[key], modelInputs[value], i);
                 } else {
                     modelInputs[key] = cache[i].Key;

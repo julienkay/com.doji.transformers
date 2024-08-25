@@ -21,8 +21,8 @@ namespace Doji.AI.Transformers {
         }
     }
     public class CausalLMOutputWithPast : ModelOutput {
-        public TensorFloat Logits { get; }
-        public CausalLMOutputWithPast(TensorFloat logits) : base() {
+        public Tensor<float> Logits { get; }
+        public CausalLMOutputWithPast(Tensor<float> logits) : base() {
             Logits = logits;
             Add("logits", logits);
         }

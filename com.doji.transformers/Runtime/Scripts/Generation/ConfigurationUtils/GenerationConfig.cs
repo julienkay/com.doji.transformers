@@ -260,13 +260,13 @@ namespace Doji.AI.Transformers {
 
 
         [JsonIgnore]
-        internal TensorInt BosTokenTensor { get; set; }
+        internal Tensor<int> BosTokenTensor { get; set; }
         [JsonIgnore]
-        internal TensorInt EosTokenTensor { get; set; }
+        internal Tensor<int> EosTokenTensor { get; set; }
         [JsonIgnore]
-        internal TensorInt PadTokenTensor { get; set; }
+        internal Tensor<int> PadTokenTensor { get; set; }
         [JsonIgnore]
-        internal TensorInt DecoderStartTokenTensor { get; set; }
+        internal Tensor<int> DecoderStartTokenTensor { get; set; }
 
         public GenerationConfig() {
             // Parameters that control the length of the output

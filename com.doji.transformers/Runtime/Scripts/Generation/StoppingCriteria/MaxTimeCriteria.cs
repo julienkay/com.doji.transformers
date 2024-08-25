@@ -25,7 +25,7 @@ namespace Doji.AI.Transformers {
             InitialTimestamp = initialTimestamp ?? DateTime.UtcNow;
         }
 
-        public override TensorInt Apply(TensorInt inputIds, TensorFloat scores) {
+        public override Tensor<int> Apply(Tensor<int> inputIds, Tensor<float> scores) {
             bool isDone = (DateTime.UtcNow - InitialTimestamp).TotalSeconds > MaxTime;
             return Ops.Full(inputIds.shape[0], isDone);
         }

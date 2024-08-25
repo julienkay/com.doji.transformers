@@ -17,11 +17,11 @@ namespace Doji.AI.Transformers {
             EosTokenId = eosTokenId;
         }
 
-        public override TensorInt Apply(TensorInt inputIds, TensorFloat scores) {
-            TensorInt isDone = Ops.Zeros<TensorInt>(new TensorShape(inputIds.shape[0]));
-            TensorInt lastTokenInputs = Ops.Slice(inputIds, .., ^1);
+        public override Tensor<int> Apply(Tensor<int> inputIds, Tensor<float> scores) {
+            Tensor<int> isDone = Ops.Zeros<int>(new TensorShape(inputIds.shape[0]));
+            Tensor<int> lastTokenInputs = Ops.Slice(inputIds, .., ^1);
             foreach (int eosToken in EosTokenId) {
-                TensorInt eos = Ops.NewTensorInt(eosToken);
+                Tensor<int> eos = Ops.NewTensor<int>(eosToken);
                 isDone = Ops.Or(isDone, Ops.Equal(lastTokenInputs, eos));
             }
             return isDone;

@@ -4,25 +4,25 @@ using Unity.Sentis;
 namespace Doji.AI.Transformers {
 
     public class GenerateDecoderOnlyOutput : ModelOutput {
-        public TensorInt Sequences {
+        public Tensor<int> Sequences {
             get {
-                return Get<TensorInt>("sequences");
+                return Get<Tensor<int>>("sequences");
             }
             internal set {
                 this["sequences"] = value;
             }
         }
-        public List<TensorFloat> Scores {
+        public List<Tensor<float>> Scores {
             get {
-                return Get<List<TensorFloat>>("scores");
+                return Get<List<Tensor<float>>>("scores");
             }
             internal set {
                 this["scores"] = value;
             }
         }
-        public List<TensorFloat> Logits {
+        public List<Tensor<float>> Logits {
             get {
-                return Get<List<TensorFloat>>("logits");
+                return Get<List<Tensor<float>>>("logits");
             }
             internal set {
                 this["logits"] = value;

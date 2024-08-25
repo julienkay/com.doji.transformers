@@ -43,7 +43,7 @@ namespace Doji.AI.Transformers {
         /// The runtime model.
         /// </summary>
         private Model _model;
-        protected IWorker _worker;
+        protected Worker _worker;
         protected Ops _ops;
 
         public PreTrainedModel(Model model, PretrainedConfig config, GenerationConfig generationConfig = null, BackendType backend = BackendType.GPUCompute) : base(config) {
@@ -58,7 +58,7 @@ namespace Doji.AI.Transformers {
             }
 
             _model = model;
-            _worker = WorkerFactory.CreateWorker(Backend, _model);
+            _worker = new Worker(_model, Backend);
             _ops = new Ops(Backend);
         }
 

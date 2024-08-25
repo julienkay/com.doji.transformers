@@ -7,16 +7,16 @@ namespace Doji.AI.Transformers {
     /// Abstract base class for all logit processors that can be applied during generation.
     /// </summary>
     public abstract class LogitsProcessor {
-        public abstract TensorFloat Apply(TensorInt inputIds, TensorFloat scores);
+        public abstract Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores);
     }
     public class MinLengthLogitsProcessor : LogitsProcessor {
         public MinLengthLogitsProcessor(int minLength, object eosTokenTensor) { }
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class MinNewTokensLengthLogitsProcessor : LogitsProcessor {
         public MinNewTokensLengthLogitsProcessor(int inputIdsSeqLength, int minNewTokens, object eosTokenTensor) { }
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class TemperatureLogitsWarper : LogitsProcessor {
@@ -24,18 +24,18 @@ namespace Doji.AI.Transformers {
         public TemperatureLogitsWarper(float temperature) {
             Temperature = temperature;
         }
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class RepetitionPenaltyLogitsProcessor : LogitsProcessor {
         public RepetitionPenaltyLogitsProcessor(float penalty) { }
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class EncoderRepetitionPenaltyLogitsProcessor : LogitsProcessor {
         public EncoderRepetitionPenaltyLogitsProcessor(float penalty, object encoderInputIds) { }
 
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class TopPLogitsWarper : LogitsProcessor {
@@ -45,7 +45,7 @@ namespace Doji.AI.Transformers {
             TopP = topP;
             MinTokensToKeep = minTokensToKeep;
         }
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class TopKLogitsWarper : LogitsProcessor {
@@ -55,7 +55,7 @@ namespace Doji.AI.Transformers {
             TopK = topK;
             MinTokensToKeep = minTokensToKeep;
         }
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class MinPLogitsWarper : LogitsProcessor {
@@ -65,7 +65,7 @@ namespace Doji.AI.Transformers {
             MinP = minP;
             MinTokensToKeep = minTokensToKeep;
         }
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class TypicalLogitsWarper : LogitsProcessor {
@@ -75,7 +75,7 @@ namespace Doji.AI.Transformers {
             TypicalP = typicalP;
             MinTokensToKeep = minTokensToKeep;
         }
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class EpsilonLogitsWarper : LogitsProcessor {
@@ -85,7 +85,7 @@ namespace Doji.AI.Transformers {
             EpsilonCutoff = epsilonCutoff;
             MinTokensToKeep = minTokensToKeep;
         }
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class EtaLogitsWarper : LogitsProcessor {
@@ -95,108 +95,108 @@ namespace Doji.AI.Transformers {
             EtaCutoff = etaCutoff;
             MinTokensToKeep = minTokensToKeep;
         }
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class NoRepeatNGramLogitsProcessor : LogitsProcessor {
         public NoRepeatNGramLogitsProcessor(int noRepeatNGramSize) { }
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class EncoderNoRepeatNGramLogitsProcessor : LogitsProcessor {
         public EncoderNoRepeatNGramLogitsProcessor(int encoderNoRepeatNGramSize, object encoderInputIds) { }
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class SequenceBiasLogitsProcessor : LogitsProcessor {
         public SequenceBiasLogitsProcessor(object sequenceBias) { }
 
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class NoBadWordsLogitsProcessor : LogitsProcessor {
         public NoBadWordsLogitsProcessor(List<List<int>> badWordsIds, object eosTokenTensor) { }
 
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class PrefixConstrainedLogitsProcessor : LogitsProcessor {
         public PrefixConstrainedLogitsProcessor(Func<int, List<int>> prefixAllowedTokensFn, int numBeams) { }
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class HammingDiversityLogitsProcessor : LogitsProcessor {
         public HammingDiversityLogitsProcessor(float diversityPenalty, int numBeams, int numBeamGroups) { }
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class ForcedBOSTokenLogitsProcessor : LogitsProcessor {
         public ForcedBOSTokenLogitsProcessor(int forcedBosTokenId) { }
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class ForcedEOSTokenLogitsProcessor : LogitsProcessor {
         public ForcedEOSTokenLogitsProcessor(int maxLength, int forcedEosTokenId) { }
 
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class InfNanRemoveLogitsProcessor : LogitsProcessor {
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class ExponentialDecayLengthPenalty : LogitsProcessor {
         public ExponentialDecayLengthPenalty((int startIndex, float decayFactor)? exponentialDecayLengthPenalty, object eosTokenTensor, int inputIdsSeqLength) { }
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class LogitNormalization : LogitsProcessor {
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class SuppressTokensAtBeginLogitsProcessor : LogitsProcessor {
         public SuppressTokensAtBeginLogitsProcessor(List<int> beginSuppressTokens, int beginIndex) { }
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class SuppressTokensLogitsProcessor : LogitsProcessor {
         public SuppressTokensLogitsProcessor(List<int> suppressTokens) { }
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class ForceTokensLogitsProcessor : LogitsProcessor {
         public ForceTokensLogitsProcessor(List<List<int>> forcedDecoderIds, bool hasWarned) { }
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class WhisperTimeStampLogitsProcessor : LogitsProcessor {
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class WhisperNoSpeechDetection : LogitsProcessor {
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class IfierFreeGuidanceLogitsProcessor : LogitsProcessor {
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class AlternatingCodebooksLogitsProcessor : LogitsProcessor {
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class UnbatchedClassifierFreeGuidanceLogitsProcessor : LogitsProcessor {
         public UnbatchedClassifierFreeGuidanceLogitsProcessor(float guidanceScale, object self, object unconditionalIds, object unconditionalAttentionMask, bool useCache) { }
 
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class BarkEosPrioritizerLogitsProcessor : LogitsProcessor {
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 
     public class WatermarkLogitsProcessor : LogitsProcessor {
         public WatermarkLogitsProcessor(int vocabSize, float greenlistRatio, float bias, int hashingKey, string seedingScheme, int contextWidth) { }
-        public override TensorFloat Apply(TensorInt inputIds, TensorFloat scores) { throw new NotImplementedException(); }
+        public override Tensor<float> Apply(Tensor<int> inputIds, Tensor<float> scores) { throw new NotImplementedException(); }
     }
 }

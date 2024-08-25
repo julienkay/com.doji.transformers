@@ -27,7 +27,7 @@ namespace Doji.AI.Transformers {
             MaxLength = startLength + maxNewTokens;
         }
 
-        public override TensorInt Apply(TensorInt inputIds, TensorFloat scores) {
+        public override Tensor<int> Apply(Tensor<int> inputIds, Tensor<float> scores) {
             bool isDone = inputIds.shape[-1] >= MaxLength;
             return Ops.Full(inputIds.shape[0], isDone);
         }
