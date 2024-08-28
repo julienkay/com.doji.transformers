@@ -1,4 +1,5 @@
 using Unity.Sentis;
+using static FunctionalUtils;
 
 namespace Doji.AI.Transformers {
 
@@ -17,12 +18,13 @@ namespace Doji.AI.Transformers {
             EosTokenId = eosTokenId;
         }
 
-        public override Tensor<int> Apply(Tensor<int> inputIds, Tensor<float> scores) {
-            Tensor<int> isDone = Ops.Zeros<int>(new TensorShape(inputIds.shape[0]));
-            Tensor<int> lastTokenInputs = Ops.Slice(inputIds, .., ^1);
+        public override FunctionalTensor Apply(FunctionalTensor inputIds, FunctionalTensor scores) {
+            FunctionalTensor isDone = Zeros<int>(new TensorShape(inputIds.shape()[0]));
+            FunctionalTensor lastTokenInputs = inputIds[.., ^1];
+            //TODO: better torch.isin() implementation
             foreach (int eosToken in EosTokenId) {
-                Tensor<int> eos = Ops.NewTensor<int>(eosToken);
-                isDone = Ops.Or(isDone, Ops.Equal(lastTokenInputs, eos));
+                FunctionalTensor eos = Functional.Constant(eosToken);
+                isDone = isDone | (lastTokenInputs == eos);
             }
             return isDone;
         }

@@ -27,9 +27,9 @@ namespace Doji.AI.Transformers {
             MaxLength = startLength + maxNewTokens;
         }
 
-        public override Tensor<int> Apply(Tensor<int> inputIds, Tensor<float> scores) {
-            bool isDone = inputIds.shape[-1] >= MaxLength;
-            return Ops.Full(inputIds.shape[0], isDone);
+        public override FunctionalTensor Apply(FunctionalTensor inputIds, FunctionalTensor scores) {
+            bool isDone = inputIds.shape()[-1] >= MaxLength;
+            return FunctionalUtils.Full(inputIds.shape()[0], isDone);
         }
     }
 }

@@ -1,22 +1,23 @@
 using System;
 using System.Collections.Generic;
 using Unity.Sentis;
+using static FunctionalUtils;
 
 namespace Doji.AI.Transformers {
     
     public class DynamicCache : Cache {
 
-        public List<Tensor> KeyCache { get; set; }
-        public List<Tensor> ValueCache { get; set; }
+        public List<FunctionalTensor> KeyCache { get; set; }
+        public List<FunctionalTensor> ValueCache { get; set; }
 
         private int _seenTokens;
 
         public DynamicCache() : base() {
-            KeyCache = new List<Tensor>();
-            ValueCache = new List<Tensor>();
+            KeyCache = new List<FunctionalTensor>();
+            ValueCache = new List<FunctionalTensor>();
         }
 
-        public override (Tensor Key, Tensor Value) this[int index] {
+        public override (FunctionalTensor Key, FunctionalTensor Value) this[int index] {
             get {
                 if (index < 0 || index >= Math.Min(KeyCache.Count, ValueCache.Count)) {
                     throw new IndexOutOfRangeException($"Index ({index} is outside the bounds of the cached values (0-{KeyCache.Count - 1}).");
@@ -25,7 +26,7 @@ namespace Doji.AI.Transformers {
             }
         }
 
-        public override IEnumerator<(Tensor Key, Tensor Value)> GetEnumerator() {
+        public override IEnumerator<(FunctionalTensor Key, FunctionalTensor Value)> GetEnumerator() {
             // Ensure both lists have the same number of elements
             int count = Math.Min(KeyCache.Count, ValueCache.Count);
 
@@ -38,13 +39,13 @@ namespace Doji.AI.Transformers {
             if (KeyCache.Count <= layerIdx) {
                 return 0;
             }
-            return KeyCache[layerIdx.Value].shape[-2];
+            return KeyCache[layerIdx.Value].shape()[-2];
         }
 
-        public override void Update(Tensor keyStates, Tensor valueStates, int layerIdx) {
+        public override void Update(FunctionalTensor keyStates, FunctionalTensor valueStates, int layerIdx) {
             // Update the number of seen tokens
             if (layerIdx == 0) {
-                _seenTokens += keyStates.shape[-2];
+                _seenTokens += keyStates.shape()[-2];
             }
 
             // Update the cache
@@ -52,8 +53,8 @@ namespace Doji.AI.Transformers {
                 KeyCache.Add(keyStates);
                 ValueCache.Add(valueStates);
             } else {
-                KeyCache[layerIdx] = Ops.Cat(KeyCache[layerIdx], keyStates, axis: -2);
-                ValueCache[layerIdx] = Ops.Cat(ValueCache[layerIdx], valueStates, axis: -2);
+                KeyCache[layerIdx] = Concat(KeyCache[layerIdx], keyStates, dim: -2);
+                ValueCache[layerIdx] = Concat(ValueCache[layerIdx], valueStates, dim: -2);
             }
         }
     }

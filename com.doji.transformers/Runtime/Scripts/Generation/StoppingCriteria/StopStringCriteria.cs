@@ -10,7 +10,7 @@ namespace Doji.AI.Transformers {
             Tokenizer = tokenizer;
             StopStrings = stopStrings;
         }
-        public override Tensor<int> Apply(Tensor<int> inputIds, Tensor<float> scores) {
+        public override FunctionalTensor Apply(FunctionalTensor inputIds, FunctionalTensor scores) {
             throw new System.NotImplementedException();
         }
     }

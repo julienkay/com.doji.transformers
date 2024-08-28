@@ -44,7 +44,7 @@ namespace Doji.AI.Transformers {
         /// </summary>
         private Model _model;
         protected Worker _worker;
-        protected Ops _ops;
+        protected FunctionalGraph _ops;
 
         public PreTrainedModel(Model model, PretrainedConfig config, GenerationConfig generationConfig = null, BackendType backend = BackendType.GPUCompute) : base(config) {
             Backend = backend;
@@ -59,7 +59,7 @@ namespace Doji.AI.Transformers {
 
             _model = model;
             _worker = new Worker(_model, Backend);
-            _ops = new Ops(Backend);
+            _ops = new FunctionalGraph();
         }
 
         public virtual void Dispose() {

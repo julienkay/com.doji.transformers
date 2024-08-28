@@ -53,7 +53,7 @@ namespace Doji.AI.Transformers {
             // define model inputs
             PrepareModelInputs(ref inputs, out string modelInputName, generationConfig.BosTokenId.Value, ref modelKwargs);
             Tensor<int> inputsTensor = inputs;
-            int batchSize = inputsTensor.shape[0];
+            int batchSize = inputsTensor.shape()[0];
 
             PrepareSpecialTokens(generationConfig, kwargsHasAttentionMask);
 
@@ -116,7 +116,7 @@ namespace Doji.AI.Transformers {
             }
 
             // Prepare `max_length` depending on other stopping criteria.
-            int inputIdsLength = inputIds.shape[-1];
+            int inputIdsLength = inputIds.shape()[-1];
             bool hasDefaultMaxLength = kwargs.Get("max_length") == null && generationConfig.MaxLength != null;
             bool hasDefaultMinLength = kwargs.Get("min_length") == null && generationConfig.MinLength != null;
             PrepareGeneratedLength(
@@ -477,7 +477,7 @@ namespace Doji.AI.Transformers {
             // better score (i.e. keep len(list(generationConfig.EosTokenTensor)) + 1)
             int minTokensToKeep;
             if (generationConfig.NumBeams > 1) {
-                minTokensToKeep = generationConfig.EosTokenTensor.shape[0] + 1;
+                minTokensToKeep = generationConfig.EosTokenTensor.shape()[0] + 1;
             } else {
                 minTokensToKeep = 1;
             }
@@ -569,8 +569,8 @@ namespace Doji.AI.Transformers {
             Tensor encoderHiddenStates = outputHiddenStates ? encoderOutputs?.GetValueOrDefault("hidden_states") : null;
 
             // keep track of which sequences are already finished
-            int batchSize = inputIds.shape[0];
-            int curLen = inputIds.shape[1];
+            int batchSize = inputIds.shape()[0];
+            int curLen = inputIds.shape()[1];
             bool finished = false;
             Tensor<int> unfinishedSequences = _ops.Ones<int>(new TensorShape(batchSize));
             GetInitialCachePosition(inputIds, modelKwargs);
@@ -639,7 +639,7 @@ namespace Doji.AI.Transformers {
                 }
 
                 // update generated ids, model inputs, and length for next step
-                nextTokens = _ops.Expand(nextTokens, new TensorShape(nextTokens.shape[0], 1));
+                nextTokens = _ops.Expand(nextTokens, new TensorShape(nextTokens.shape()[0], 1));
                 inputIds = _ops.Concatenate(inputIds, nextTokens, axis: -1);
                 //streamer?.Put(nextTokens);
                 UpdateModelKwargsForGeneration(outputs, modelKwargs, Config.IsEncoderDecoder);
@@ -700,7 +700,7 @@ namespace Doji.AI.Transformers {
         {
             if (inputIds != null && expandSize > 1) {
                 //TODO: RepeatInterleave needs to properly support arbitrary shapes
-                int d1 = inputIds.shape[1];
+                int d1 = inputIds.shape()[1];
                 inputIds.Reshape(new TensorShape(d1));
                 inputIds = _ops.RepeatInterleave(inputIds, expandSize, dim: 0);
                 inputIds.Reshape(new TensorShape(expandSize, d1));
@@ -725,7 +725,7 @@ namespace Doji.AI.Transformers {
                 {
                     //TODO: RepeatInterleave needs to properly support arbitrary shapes
                     Tensor<int> tensor = dictToExpand[key] as Tensor<int>;
-                    int d1 = tensor.shape[1];
+                    int d1 = tensor.shape()[1];
                     tensor.Reshape(new TensorShape(d1));
                     tensor = _ops.RepeatInterleave(tensor, expandSize, dim: 0);
                     dictToExpand[key] = tensor;
@@ -774,7 +774,7 @@ namespace Doji.AI.Transformers {
                 if (modelKwargs.ContainsKey("attention_mask")) {
                     var attentionMask = modelKwargs["attention_mask"] as Tensor<int>;
                     modelKwargs["attention_mask"] = _ops.Concatenate(
-                        attentionMask, _ops.Ones<int>(new TensorShape(attentionMask.shape[0], 1)), axis: -1
+                        attentionMask, _ops.Ones<int>(new TensorShape(attentionMask.shape()[0], 1)), axis: -1
                     );
                 }
             } else {
@@ -782,7 +782,7 @@ namespace Doji.AI.Transformers {
                 if (modelKwargs.ContainsKey("decoder_attention_mask")) {
                     var decoderAttentionMask = modelKwargs["decoder_attention_mask"] as Tensor;
                     modelKwargs["decoder_attention_mask"] = _ops.Concatenate(
-                        decoderAttentionMask, _ops.Ones<int>(new TensorShape(decoderAttentionMask.shape[0], 1)), axis: -1
+                        decoderAttentionMask, _ops.Ones<int>(new TensorShape(decoderAttentionMask.shape()[0], 1)), axis: -1
                     );
                 }
             }
@@ -1114,7 +1114,7 @@ namespace Doji.AI.Transformers {
             int batch_size = 1;
             foreach (var kvp in modelKwargs) {
                 if (kvp.Value is Tensor) {
-                    batch_size = (kvp.Value as Tensor).shape[0];
+                    batch_size = (kvp.Value as Tensor).shape()[0];
                     break;
                 }
             }
@@ -1201,7 +1201,7 @@ namespace Doji.AI.Transformers {
 
         private Tensor PrepareAttentionMaskForGeneration(Tensor<int> inputs, Tensor<int> padTokenTensor, int? padTokenId, int[] eosTokenId) {
             // No information for attention mask inference -> return default attention mask
-            var shape = new TensorShape(inputs.shape[0], inputs.shape[1]);
+            var shape = new TensorShape(inputs.shape()[0], inputs.shape()[1]);
             var defaultAttentionMask = _ops.Ones<int>(shape);
             if (padTokenId == null) {
                 return defaultAttentionMask;
@@ -1287,8 +1287,8 @@ namespace Doji.AI.Transformers {
             }
             // if both `inputs_embeds` and `input_ids` are passed, we do not correct the length
             // otherwise we need total length [inputs-embeds-len + new-tokens-len] to not go beyond indicated `max_length``
-            else if (modelInputName == "inputs_embeds" && inputIdsLength != inputsTensor.shape[1] && !Config.IsEncoderDecoder) {
-                generationConfig.MaxLength -= inputsTensor.shape[1];
+            else if (modelInputName == "inputs_embeds" && inputIdsLength != inputsTensor.shape()[1] && !Config.IsEncoderDecoder) {
+                generationConfig.MaxLength -= inputsTensor.shape()[1];
             }
 
             // same for min length
@@ -1300,8 +1300,8 @@ namespace Doji.AI.Transformers {
                     );
                 }
                 generationConfig.MinLength = generationConfig.MinNewTokens + inputIdsLength;
-            } else if (modelInputName == "inputs_embeds" && inputIdsLength != inputsTensor.shape[1] && !Config.IsEncoderDecoder) {
-                generationConfig.MinLength = Math.Max(generationConfig.MinLength.Value - inputsTensor.shape[1], 0);
+            } else if (modelInputName == "inputs_embeds" && inputIdsLength != inputsTensor.shape()[1] && !Config.IsEncoderDecoder) {
+                generationConfig.MinLength = Math.Max(generationConfig.MinLength.Value - inputsTensor.shape()[1], 0);
             }
 
             return generationConfig;
@@ -1325,9 +1325,9 @@ namespace Doji.AI.Transformers {
             Tensor<int> inputEmbeds = modelKwargs.Get<Tensor<int>>("inputs_embeds");
             Tensor<int> cachePosition;
             if (inputEmbeds != null) {
-                cachePosition = _ops.Ones<int>(new TensorShape(inputEmbeds.shape[1]));
+                cachePosition = _ops.Ones<int>(new TensorShape(inputEmbeds.shape()[1]));
             } else {
-                cachePosition = _ops.Ones<int>(new TensorShape(inputIds.shape[1]));
+                cachePosition = _ops.Ones<int>(new TensorShape(inputIds.shape()[1]));
             }
             cachePosition = _ops.CumSum(cachePosition, 0);
             cachePosition = _ops.Sub(cachePosition, 1);

@@ -1,4 +1,5 @@
 using Unity.Sentis;
+using static FunctionalUtils;
 
 namespace Doji.AI.Transformers {
 
@@ -24,8 +25,8 @@ namespace Doji.AI.Transformers {
             MaxPositionEmbeddings = maxPositionEmbeddings;
         }
 
-        public override Tensor<int> Apply(Tensor<int> inputIds, Tensor<float> scores) {
-            int curLen = inputIds.shape[-1];
+        public override FunctionalTensor Apply(FunctionalTensor inputIds, FunctionalTensor scores) {
+            int curLen = inputIds.shape()[-1];
             bool isDone = curLen >= MaxLength;
             if (MaxPositionEmbeddings != null && !isDone && curLen >= MaxPositionEmbeddings) {
                 Log.Warning("This is a friendly reminder - the current text generation call will exceed the model's predefined " +
@@ -33,7 +34,7 @@ namespace Doji.AI.Transformers {
                     "exceptions, performance degradation, or nothing at all."
                 );
             }
-            return Ops.Full(inputIds.shape[0], isDone);
+            return Full(inputIds.shape()[0], isDone);
         }
     }
 }

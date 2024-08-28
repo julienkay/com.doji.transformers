@@ -1,5 +1,6 @@
 using System;
 using Unity.Sentis;
+using static FunctionalUtils;
 
 namespace Doji.AI.Transformers {
 
@@ -25,9 +26,9 @@ namespace Doji.AI.Transformers {
             InitialTimestamp = initialTimestamp ?? DateTime.UtcNow;
         }
 
-        public override Tensor<int> Apply(Tensor<int> inputIds, Tensor<float> scores) {
+        public override FunctionalTensor Apply(FunctionalTensor inputIds, FunctionalTensor scores) {
             bool isDone = (DateTime.UtcNow - InitialTimestamp).TotalSeconds > MaxTime;
-            return Ops.Full(inputIds.shape[0], isDone);
+            return Full(inputIds.shape()[0], isDone);
         }
     }
 }

@@ -8,7 +8,6 @@ namespace Doji.AI.Transformers {
     /// can validly complete the stop strings.
     /// </summary>
     public abstract class StoppingCriteria {
-        internal Ops Ops { get; set; }
-        public abstract Tensor<int> Apply(Tensor<int> inputIds, Tensor<float> scores);
+        public abstract FunctionalTensor Apply(FunctionalTensor inputIds, FunctionalTensor scores);
     }
 }

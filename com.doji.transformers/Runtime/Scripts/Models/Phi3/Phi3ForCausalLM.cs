@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Unity.Sentis;
+using static FunctionalUtils;
 
 namespace Doji.AI.Transformers {
 
@@ -25,24 +26,24 @@ namespace Doji.AI.Transformers {
             return new CausalLMOutputWithPast(logits);
         }
 
-        protected override Dictionary<string, Tensor> PrepareInputsForGeneration(
-            Tensor<int> inputIds,
+        protected override Dictionary<string, FunctionalTensor> PrepareInputsForGeneration(
+            FunctionalTensor inputIds,
             Kwargs kwargs)
         {
             Cache pastKeyValues = kwargs.Get<Cache>("past_key_values");
-            Tensor<int> attentionMask = kwargs.Get<Tensor<int>>("attention_mask");
-            Tensor<float> inputsEmbeds = kwargs.Get<Tensor<float>>("inputs_embeds");
-            Tensor<int> cachePosition = kwargs.Get<Tensor<int>>("cache_position");
-            Tensor<int> positionIds = kwargs.Get<Tensor<int>>("position_ids");
+            FunctionalTensor attentionMask = kwargs.Get<FunctionalTensor>("attention_mask");
+            FunctionalTensor inputsEmbeds = kwargs.Get<FunctionalTensor>("inputs_embeds");
+            FunctionalTensor cachePosition = kwargs.Get<FunctionalTensor>("cache_position");
+            FunctionalTensor positionIds = kwargs.Get<FunctionalTensor>("position_ids");
 
             // If we have cache: let's slice `inputIds` through `cachePosition`, to keep only the unprocessed tokens
             if (pastKeyValues != null) {
                 if (inputsEmbeds != null) {
                     // Exception 1: when passing input_embeds, inputIds may be missing entries
-                    inputIds = _ops.Slice(inputIds, .., ^cachePosition.shape[0]..);
-                } else if (inputIds.shape[1] != cachePosition.shape[0]) {
-                    var indices = _ops.Expand(cachePosition, new TensorShape(inputIds.shape[0], cachePosition.shape[0]));
-                    inputIds = _ops.GatherElements(inputIds, indices, 0);
+                    inputIds = inputIds[ .., ^cachePosition.shape()[0]..];
+                } else if (inputIds.shape()[1] != cachePosition.shape()[0]) {
+                    var indices = cachePosition.Expand(new TensorShape(inputIds.shape()[0], cachePosition.shape()[0]));
+                    inputIds = inputIds.Gather(dim: 0, indices);
                 } else {
                     ;// Exception 2: some generation methods do special slicing of inputIds, so we don't need to do it here
                 }
@@ -50,10 +51,10 @@ namespace Doji.AI.Transformers {
 
             if (attentionMask != null && positionIds == null) {
                 // create positionIds on the fly for batch generation
-                positionIds = _ops.Sub(_ops.CumSum(attentionMask, -1), 1);
-                positionIds = _ops.MaskedFill(positionIds, _ops.Neg(attentionMask), 1);
+                positionIds = Functional.CumSum(attentionMask, -1) - 1;
+                positionIds = MaskedFill(positionIds, ~attentionMask, 1);
                 if (pastKeyValues != null) {
-                    positionIds = _ops.Slice(positionIds, .., ^inputIds.shape[1]..);
+                    positionIds = positionIds[.., ^inputIds.shape()[1]..];
                 }
             }
 
@@ -102,8 +103,8 @@ namespace Doji.AI.Transformers {
                 string value = $"past_key_values.{i}.value";
                 if (cache.GetSeqLength(i) == 0) {
                     // create empty tensors for initial loop
-                    modelInputs[key] = _ops.AllocNoData<float>(new TensorShape(inputIds.shape[0], 32, 0, 96)) as Tensor;
-                    modelInputs[value] = _ops.AllocNoData<float>(new TensorShape(inputIds.shape[0], 32, 0, 96));
+                    modelInputs[key] = _ops.AllocNoData<float>(new TensorShape(inputIds.shape()[0], 32, 0, 96)) as Tensor;
+                    modelInputs[value] = _ops.AllocNoData<float>(new TensorShape(inputIds.shape()[0], 32, 0, 96));
                     cache.Update(modelInputs[key], modelInputs[value], i);
                 } else {
                     modelInputs[key] = cache[i].Key;
