@@ -89,3 +89,7 @@ Thumbs.db
 # custom #
 # ====== #
 /[Pp]ackages/[Cc]om.unity.asset-store-tools*
+Assets/Resources
+Assets/Resources.meta
+Assets/StreamingAssets
+Assets/StreamingAssets.meta
