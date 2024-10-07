@@ -645,7 +645,7 @@ namespace Doji.AI.Transformers {
                 UpdateModelKwargsForGeneration(outputs, modelKwargs, Config.IsEncoderDecoder);
 
                 unfinishedSequences = _ops.And(unfinishedSequences, _ops.Not(stoppingCriteria.Apply(inputIds, /*scores*/ null)));
-                var max = _ops.ReduceMax(unfinishedSequences, 0).ReadbackAndClone();
+                var max = _ops.ReduceMax(unfinishedSequences, null).ReadbackAndClone();
                 finished = max[0] == 0;
                 curLen += 1;
             }
