@@ -39,6 +39,6 @@ var predictedText = tokenizer.Decode(outputs);
 
 [OpenUPM]: https://openupm.com/packages/com.doji.transformers
 [Documentation (coming soon)]: https://github.com/julienkay/com.doji.transformers
-[Feedback/Questions]: https://discussions.unity.com/t/stable-diffusion-diffusers-transformers-package/332701
+[Feedback/Questions]: https://discussions.unity.com/t/stable-diffusion-diffusers-transformers-package/332701?u=julienkay
 [transformers]: https://github.com/huggingface/transformers
 [com.doji.diffusers]: https://github.com/julienkay/com.doji.diffusers
