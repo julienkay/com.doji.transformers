@@ -1,12 +1,11 @@
 {
   "dependencies": {
-    "com.unity.sentis": "file:../../../../com.unity.sentis/com.unity.sentis",
-    "com.doji.transformers": "file:../../../com.doji.transformers",
     "com.doji.sentencepiece": "file:../../../../com.doji.sentencepiece/com.doji.sentencepiece",
     "com.doji.sentis-utils": "file:../../../../com.doji.sentis-utils/com.doji.sentis-utils",
-    "com.unity.ide.visualstudio": "2.0.22",
-    "com.unity.textmeshpro": "3.0.6",
-    "com.unity.ugui": "1.0.0",
+    "com.doji.transformers": "file:../../../com.doji.transformers",
+    "com.unity.ide.visualstudio": "2.0.23",
+    "com.unity.sentis": "file:../../../../com.unity.sentis/com.unity.sentis",
+    "com.unity.ugui": "2.0.0",
     "com.unity.modules.ai": "1.0.0",
     "com.unity.modules.androidjni": "1.0.0",
     "com.unity.modules.animation": "1.0.0",
