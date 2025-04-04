@@ -7,7 +7,7 @@ using System.Runtime.CompilerServices;
 [assembly: AssemblyProduct("Doji.Transformers")]
 [assembly: AssemblyCopyright("Copyright © Julien Kipp 2023-2024")]
 
-[assembly: AssemblyVersion("0.1.2.0")]
-[assembly: AssemblyFileVersion("0.1.2.0")]
-[assembly: AssemblyInformationalVersion("0.1.2")]
+[assembly: AssemblyVersion("0.1.3.0")]
+[assembly: AssemblyFileVersion("0.1.3.0")]
+[assembly: AssemblyInformationalVersion("0.1.3")]
 [assembly: InternalsVisibleTo("Doji.Transformers.Editor.Tests")]
