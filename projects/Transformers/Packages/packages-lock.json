@@ -21,7 +21,7 @@
       "dependencies": {
         "com.unity.sentis": "2.1.2",
         "com.unity.nuget.newtonsoft-json": "3.2.1",
-        "com.doji.sentencepiece": "0.1.0",
+        "com.doji.sentencepiece": "0.1.1",
         "com.doji.sentis-utils": "0.1.0"
       }
     },
