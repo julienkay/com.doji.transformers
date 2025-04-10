@@ -62,22 +62,38 @@ namespace Doji.AI.Transformers {
 
         /// <summary>
         /// Returns a path for the tokenizer.model file in either StreamingAssets or Resources.
-        /// Note that loading from the Resource path returned here will not work at Runtime,
-        /// since arbitrary binary files can't be loaded from Resources.
         /// </summary>
         private static string GetTokenizerModelPath(string pretrainedModelNameOrPath) {
             string streamingAssetsPath = Path.Combine(Application.streamingAssetsPath, pretrainedModelNameOrPath, "tokenizer.model");
             if (File.Exists(streamingAssetsPath)) {
                 return streamingAssetsPath;
             }
-            string configResourcePath = Path.Combine(pretrainedModelNameOrPath, Path.ChangeExtension(TOKENIZER_CONFIG_FILE, null));
-            var config = Resources.Load<TextAsset>(configResourcePath);
-            if (config == null) {
-                throw new FileNotFoundException($"No tokenizer model files found for '{pretrainedModelNameOrPath}'");
+            string resourcePath = Path.Combine(pretrainedModelNameOrPath, "tokenizer");
+            var tokenizerModel = Resources.Load<TokenizerModelAsset>(resourcePath);
+            if (tokenizerModel == null) {
+                throw new Exception($"Tokenizer model asset for '{pretrainedModelNameOrPath} could not be loaded'");
             }
-            string resourcePath = UnityEditor.AssetDatabase.GetAssetPath(config);
-            resourcePath = ReplaceFileName(resourcePath, "tokenizer.model");
-            return resourcePath;
+
+            // since a path is required we extract the tokenizer model loaded from Resources and return that path.
+            string tmpModelPath = CreateTokenizerModelAtPath(tokenizerModel, pretrainedModelNameOrPath);
+            return tmpModelPath;
+        }
+
+        /// <summary>
+        /// Writes the contents of a tokenizer model to a temporary file and returns the path.
+        /// </summary>
+        private static string CreateTokenizerModelAtPath(TokenizerModelAsset tokenizerModel, string pretrainedModelNameOrPath) {
+            if (tokenizerModel == null) {
+                UnityEngine.Debug.LogError("TextAsset is null. Cannot write to temp file.");
+                return null;
+            }
+            string folderPath = Path.Combine(Application.temporaryCachePath, pretrainedModelNameOrPath);
+            string tempPath = Path.Combine(folderPath, "tokenizer.model");
+            if (!Directory.Exists(folderPath)) {
+                Directory.CreateDirectory(folderPath);
+            }
+            File.WriteAllBytes(tempPath, tokenizerModel.ModelData);
+            return tempPath;
         }
 
         private static string ReplaceFileName(string originalFilePath, string newFileName) {
