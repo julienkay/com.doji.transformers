@@ -1,7 +1,9 @@
 {
     "name": "Doji.Transformers.Editor",
     "rootNamespace": "",
-    "references": [],
+    "references": [
+        "GUID:792a551df4a0292469be78bbb192f6d6"
+    ],
     "includePlatforms": [
         "Editor"
     ],
