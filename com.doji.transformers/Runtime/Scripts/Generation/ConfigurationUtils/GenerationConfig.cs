@@ -2,7 +2,7 @@ using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Runtime.Serialization;
-using Unity.Sentis;
+using Unity.InferenceEngine;
 
 namespace Doji.AI.Transformers {
 

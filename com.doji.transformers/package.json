@@ -4,7 +4,7 @@
   "displayName": "Transformers",
   "description": "State-of-the-art transformer models to perform tasks on different modalities such as text, vision, and audio with Unity Sentis",
   "dependencies": {
-    "com.unity.sentis": "2.1.2",
+    "com.unity.ai.inference": "2.4.1",
     "com.unity.nuget.newtonsoft-json": "3.2.1",
     "com.doji.sentencepiece": "0.1.1",
     "com.doji.sentis-utils": "0.1.0"
