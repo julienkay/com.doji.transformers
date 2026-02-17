@@ -22,7 +22,7 @@
         "com.unity.ai.inference": "2.5.0",
         "com.unity.nuget.newtonsoft-json": "3.2.1",
         "com.doji.sentencepiece": "0.1.1",
-        "com.doji.sentis-utils": "0.2.0"
+        "com.doji.sentis-utils": "0.1.1"
       }
     },
     "com.unity.ai.inference": {
